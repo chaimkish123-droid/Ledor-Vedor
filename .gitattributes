@@ -1,0 +1,12 @@
+# Keep Unix line endings everywhere, whatever machine checks the code out.
+#
+# Git on Windows helpfully converts files to Windows line endings. That breaks
+# a Dockerfile whose commands continue across lines with a backslash: the
+# container build fails with an error that says nothing about line endings, on
+# a machine where everything looks correct. This is cheaper than that afternoon.
+* text=auto eol=lf
+
+# Never touch what is inside an image or an archive.
+*.png binary
+*.db binary
+*.ged text eol=lf

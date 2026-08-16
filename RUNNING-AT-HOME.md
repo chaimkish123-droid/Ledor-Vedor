@@ -20,7 +20,8 @@ Docker is the thing that runs the application without you having to install
 anything else.
 
 - **Mac or Windows** — download **Docker Desktop** from docker.com and install
-  it like any other program. Open it once and leave it running.
+  it like any other program. Open it once and leave it running until it says
+  *Engine running*.
 - **Raspberry Pi or another Linux machine** — in a terminal:
   ```bash
   curl -fsSL https://get.docker.com | sh
@@ -28,14 +29,28 @@ anything else.
   ```
   Then log out and back in.
 
+> **On Windows**, Docker Desktop needs a component called WSL 2. Its installer
+> normally sets that up and asks you to restart. If it complains that
+> virtualisation is disabled, that is a setting in your computer's BIOS —
+> search for your model plus "enable virtualisation", as the key to press
+> differs by manufacturer.
+
 ### 2. Get the code onto that machine
 
-In a terminal — Terminal on a Mac, PowerShell on Windows:
+**If you have Git**, in a terminal — Terminal on a Mac, PowerShell on Windows:
 
 ```bash
 git clone https://github.com/chaimkish123-droid/Claude-code.git ldor-vador
 cd ldor-vador
 ```
+
+**If you do not**, and would rather not install it: open the repository page on
+GitHub, press the green **Code** button, choose **Download ZIP**, and unzip it
+somewhere simple like `C:\ldor-vador`. Then open a terminal in that folder — on
+Windows, shift-right-click inside it and choose *Open PowerShell window here*.
+
+Git is worth having later, because updating becomes `git pull` rather than
+downloading the whole thing again.
 
 ### 3. Start it
 
