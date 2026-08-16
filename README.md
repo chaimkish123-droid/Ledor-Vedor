@@ -26,7 +26,7 @@ family
 Other commands:
 
 ```bash
-npm test             # 88 unit tests: calendar, relationships, geometry, GEDCOM, merging, privacy
+npm test             # 98 unit tests: calendar, relationships, geometry, GEDCOM, merging, accounts
 npm run seed         # rebuild the demonstration family from scratch
 npm run backup       # take a verified backup
 npm run restore      # list backups; `npm run restore -- <name>` puts one back
@@ -38,6 +38,9 @@ Data lives in `data/family.db` (SQLite). Delete it to start over.
 ---
 
 ## Deploying it for a real family
+
+Full instructions, including backups and what to check afterwards, are in
+[DEPLOYING.md](DEPLOYING.md). In short:
 
 The demonstration family exists only in development. A production instance
 starts **empty**, and the first person to arrive creates the founding account at
@@ -247,6 +250,15 @@ on a fresh installation; everyone after that arrives through a single-use
 invitation link that expires after two weeks. Sign-in, joining and setup are all
 rate limited. Pages are marked `noindex` and cannot be framed.
 
+**And getting back in.** There is no password email — that would mean mail
+credentials to keep and another thing to fail exactly when somebody needs it.
+An administrator opens *Who has an account*, presses *They cannot sign in*, and
+sends the link however they normally reach that relative. It works once, expires
+after two days, and signs that account out everywhere when it is used, because a
+forgotten password and a taken account look identical from here. Only the hash
+of the link is stored, so a copy of the archive carries no live keys. Anyone
+signed in can change their own password, which signs out their other devices.
+
 ---
 
 ## Shape of the code
@@ -256,6 +268,7 @@ src/lib/
   hebrew.ts          Hebrew calendar conversion and gematria
   photos.ts          portraits, stored in the archive so backups include them
   merge.ts           combining two records of one person, and finding them
+  passwords.ts       reset links and password changes, without an email server
   visibility.ts      who may read a memory, worked out from the family graph
   visibility-labels.ts  the wording, safe to load in a browser
   gedcom.ts          reading GEDCOM, including Hebrew-calendar dates
@@ -277,6 +290,7 @@ scripts/import-flow.mts  browser check of the import screen
 scripts/photo-flow.mts   browser check of adding and removing a portrait
 scripts/merge-flow.mts   browser check of finding and combining a duplicate
 scripts/privacy-flow.mts browser check across two accounts in two browsers
+scripts/recovery-flow.mts browser check of a locked-out relative getting back in
 scripts/flows.mts    end-to-end browser check of the paths that write data
 ```
 

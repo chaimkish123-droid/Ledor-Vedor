@@ -58,6 +58,26 @@ function migrate(database: Database.Database) {
   addColumn('legacy_entry', 'visibility', "TEXT NOT NULL DEFAULT 'family'");
 
   /*
+   * Getting back in after forgetting a password.
+   *
+   * Only the hash of a reset code is kept. A code sitting in plain text would
+   * mean a copy of the archive — a backup on somebody's laptop, say — carried
+   * live keys to family accounts with it.
+   */
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS password_reset (
+      id          TEXT PRIMARY KEY,
+      user_id     TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      code_hash   TEXT NOT NULL,
+      created_by  TEXT REFERENCES user(id) ON DELETE SET NULL,
+      created_at  TEXT NOT NULL,
+      expires_at  TEXT NOT NULL,
+      used_at     TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset(user_id);
+  `);
+
+  /*
    * A person may have one photograph: their portrait, shown on their card and
    * at the top of their profile. There is deliberately no album — this is a
    * family tree, and the face is there to help you recognise someone, not to

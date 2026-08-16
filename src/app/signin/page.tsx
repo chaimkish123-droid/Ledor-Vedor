@@ -76,6 +76,11 @@ export default function SignInPage() {
           Been invited? <Link href="/join" className="text-sage underline underline-offset-2">Join the family</Link>
         </p>
 
+        <p className="mt-3 text-center text-[14px] text-ink-faint">
+          Forgotten your password? Ask whoever looks after the family archive and they can send you a
+          link to set a new one.
+        </p>
+
         <div className="mt-10 rounded-xl border border-stone-line bg-card px-4 py-3 text-center text-[13px] text-ink-soft">
           <p className="mb-1 text-ink">Try the demonstration family</p>
           <p>demo@ldorvador.family · family</p>

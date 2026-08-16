@@ -131,6 +131,12 @@ export default function FamilyMenu({
                 >
                   Find anyone recorded twice
                 </a>
+                <a
+                  href="/members"
+                  className="block rounded-lg border border-stone-line px-3 py-2.5 text-center text-[15px] text-ink transition-colors hover:border-sage"
+                >
+                  Who has an account
+                </a>
               </>
             )}
             <a
@@ -138,6 +144,9 @@ export default function FamilyMenu({
               className="block text-[14px] text-ink-soft underline underline-offset-2"
             >
               Download a copy of the family
+            </a>
+            <a href="/account" className="block text-[14px] text-ink-soft underline underline-offset-2">
+              Your account and password
             </a>
           </div>
 
