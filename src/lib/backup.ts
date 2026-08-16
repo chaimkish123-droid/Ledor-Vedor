@@ -61,6 +61,17 @@ export async function takeBackup(reason = 'manual'): Promise<BackupFile> {
     check.close();
   }
 
+  // Verifying the copy leaves SQLite's sidecar files beside it. They belong to
+  // nothing now, and litter in a backup directory is the last thing anyone
+  // needs when they are already having a bad day.
+  for (const suffix of ['-wal', '-shm']) {
+    try {
+      rmSync(`${target}${suffix}`);
+    } catch {
+      // Absent is the normal case.
+    }
+  }
+
   prune();
 
   const info = statSync(target);

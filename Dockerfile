@@ -9,6 +9,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
+# The build needs the dev dependencies, but not the browsers one of them would
+# otherwise download — those are for running the checks, never for the image.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm ci
 
 FROM node:22-slim AS builder

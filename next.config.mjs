@@ -5,11 +5,16 @@ const nextConfig = {
   serverExternalPackages: ['better-sqlite3'],
 
   // The family's archive must never be traced into a build artifact. It lives
-  // on a mounted volume; a deployment bundle that carries a copy of it is a
-  // quiet way to leak an entire family history.
+  // on a mounted volume; a bundle carrying a copy of it is a quiet way to leak
+  // an entire family history.
+  //
+  // The pattern is anchored deliberately. A loose "./data/**" also matches
+  // next/dist/lib/metadata, which strips a module the server needs — and the
+  // build still succeeds, so the failure only appears once it is deployed.
   outputFileTracingExcludes: {
-    '*': ['./data/**', './backups/**'],
+    '*': ['./data/*.db', './data/*.db-*', './data/backups/**'],
   },
+
   eslint: { ignoreDuringBuilds: true },
 
   async headers() {
