@@ -118,6 +118,22 @@ const memorySaved = await page.getByText(/taught all of us to ride bicycles/).is
 check('a memory can be added from the profile', memorySaved);
 await page.screenshot({ path: `${OUT}/05-memory.png`, fullPage: false });
 
+/* --- Search reaches past names ------------------------------------- */
+
+await page.goto(`${BASE}/tree`);
+await page.waitForTimeout(1200);
+await page.fill('input[type=search]', 'Krak');
+await page.waitForTimeout(900);
+const placeContext = await page.getByText(/born in Kraków/).first().isVisible().catch(() => false);
+check('search finds people by place, and says why', placeContext);
+await page.screenshot({ path: `${OUT}/06-search-place.png` });
+
+await page.fill('input[type=search]', 'bookbinding');
+await page.waitForTimeout(900);
+const storyContext = await page.getByText(/in a memory —/).first().isVisible().catch(() => false);
+check('search reaches inside memories', storyContext);
+await page.screenshot({ path: `${OUT}/07-search-story.png` });
+
 /* --- Revision history recorded the changes ------------------------- */
 
 await page.goto(`${BASE}/tree`);
@@ -128,6 +144,23 @@ await page.getByRole('link', { name: 'Full profile' }).click();
 await page.waitForTimeout(1400);
 const historyShown = await page.getByText(/recorded change/).isVisible().catch(() => false);
 check('revision history records what changed', historyShown);
+
+/* --- A mistaken edit can be put back ------------------------------- */
+
+await page.getByText(/recorded change/).click();
+await page.waitForTimeout(400);
+const restore = page.getByRole('button', { name: 'Put this back' });
+const canRestore = (await restore.count()) > 0;
+check('an administrator is offered a way to put a value back', canRestore);
+
+if (canRestore) {
+  await page.screenshot({ path: `${OUT}/08-history.png` });
+  await restore.first().click();
+  await page.waitForTimeout(1800);
+  const restored = await page.getByText(/Restored/).first().isVisible().catch(() => false);
+  check('restoring records itself as a change rather than erasing one', restored);
+  await page.screenshot({ path: `${OUT}/09-restored.png` });
+}
 
 await browser.close();
 

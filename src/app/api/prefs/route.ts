@@ -14,9 +14,24 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return withUser((user) => ({
-    calendar: getPref(user.id, 'calendar') ?? 'gregorian',
-    density: getPref(user.id, 'density') ?? 'spacious',
-    startingBranch: getPref(user.id, 'startingBranch') ?? 'mine',
-  }));
+  return withUser((user) => {
+    const parseList = (key: string): string[] => {
+      try {
+        const raw = getPref(user.id, key);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.filter((v) => typeof v === 'string') : [];
+      } catch {
+        return [];
+      }
+    };
+
+    return {
+      calendar: getPref(user.id, 'calendar') ?? 'gregorian',
+      density: getPref(user.id, 'density') ?? 'spacious',
+      startingBranch: getPref(user.id, 'startingBranch') ?? 'mine',
+      // Which branches this viewer had opened last time.
+      expandedGroups: parseList('expandedGroups'),
+      expandedPeople: parseList('expandedPeople'),
+    };
+  });
 }

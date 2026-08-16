@@ -61,6 +61,7 @@ export default function TreeClient({
   const [showViews, setShowViews] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [calendar, setCalendar] = useState<CalendarPreference>('gregorian');
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
   // Bump this to make open panels refetch after a preference changes.
   const [prefVersion, setPrefVersion] = useState(0);
 
@@ -89,9 +90,29 @@ export default function TreeClient({
       .then((prefs) => {
         if (prefs?.calendar) setCalendar(prefs.calendar);
         if (prefs?.density) setSpacious(prefs.density !== 'compact');
+        // Branches this viewer had open last time stay open.
+        if (prefs?.expandedGroups?.length) setExpandedGroups(new Set<string>(prefs.expandedGroups));
+        if (prefs?.expandedPeople?.length) setExpanded(prefs.expandedPeople);
+        setPrefsLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => setPrefsLoaded(true));
   }, []);
+
+  // Remember what was opened, without a save on every single click.
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    const timer = setTimeout(() => {
+      fetch('/api/prefs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          expandedGroups: JSON.stringify([...expandedGroups]),
+          expandedPeople: JSON.stringify(expanded),
+        }),
+      }).catch(() => {});
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [expandedGroups, expanded, prefsLoaded]);
 
   const changeCalendar = useCallback(async (value: CalendarPreference) => {
     setCalendar(value);

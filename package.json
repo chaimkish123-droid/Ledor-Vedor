@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "tsx scripts/seed.ts",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --import ./tests/setup.mts --test tests/*.test.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

@@ -126,6 +126,9 @@ export type Revision = {
   summary: string | null;
   userName: string | null;
   createdAt: string;
+  columnName: string | null;
+  /** Field edits can be put back; creations cannot be undone. */
+  revertable: boolean;
 };
 
 export type SessionUser = {

@@ -1,5 +1,5 @@
 import { db, id as newId, normalize, now } from './db';
-import { formatLifespan, sortKey, type FlexibleDate, UNKNOWN_DATE } from './dates';
+import { formatGregorian, formatLifespan, sortKey, type FlexibleDate, UNKNOWN_DATE } from './dates';
 import type {
   Frontier,
   GraphSlice,
@@ -355,6 +355,8 @@ export type SearchHit = {
   person: PersonSummary;
   matchedName: string;
   matchedKind: string;
+  /** Why this person came up, when it was not simply their name. */
+  context?: string | null;
 };
 
 export function searchPersons(query: string, limit = 20): SearchHit[] {
@@ -371,7 +373,7 @@ export function searchPersons(query: string, limit = 20): SearchHit[] {
     .all(`%${q}%`, `%${query.trim()}%`) as Row[];
 
   // Rank: whole-word prefix beats mid-string; preferred names beat nicknames.
-  const seen = new Map<string, { value: string; kind: string; score: number }>();
+  const seen = new Map<string, { value: string; kind: string; score: number; context?: string }>();
   for (const row of rows) {
     const norm: string = row.normalized;
     let score = 0;
@@ -388,15 +390,138 @@ export function searchPersons(query: string, limit = 20): SearchHit[] {
     }
   }
 
+  // Beyond names: a year, a place, a line in someone's story. People remember
+  // families in all of these ways, so all of them should find a person.
+  for (const extra of searchBeyondNames(query)) {
+    const existing = seen.get(extra.personId);
+    if (existing && existing.score >= extra.score) continue;
+    seen.set(extra.personId, {
+      value: extra.value,
+      kind: extra.kind,
+      score: extra.score,
+      context: extra.context,
+    });
+  }
+
   const ranked = [...seen.entries()].sort((a, b) => b[1].score - a[1].score).slice(0, limit);
   const summaries = new Map(getSummaries(ranked.map(([pid]) => pid)).map((s) => [s.id, s]));
 
   return ranked
     .map(([personId, meta]) => {
       const person = summaries.get(personId);
-      return person ? { person, matchedName: meta.value, matchedKind: meta.kind } : null;
+      return person
+        ? { person, matchedName: meta.value, matchedKind: meta.kind, context: meta.context ?? null }
+        : null;
     })
     .filter(Boolean) as SearchHit[];
+}
+
+type ExtraMatch = { personId: string; value: string; kind: string; score: number; context: string };
+
+/** Trim a long passage down to the part that actually matched. */
+function excerpt(text: string, query: string, span = 70): string {
+  const at = text.toLowerCase().indexOf(query.toLowerCase());
+  if (at < 0) return text.length > span ? `${text.slice(0, span)}…` : text;
+  const start = Math.max(0, at - span / 3);
+  const slice = text.slice(start, start + span);
+  return `${start > 0 ? '…' : ''}${slice.trim()}${start + span < text.length ? '…' : ''}`;
+}
+
+function searchBeyondNames(query: string): ExtraMatch[] {
+  const term = query.trim();
+  if (term.length < 2) return [];
+
+  const like = `%${term}%`;
+  const database = db();
+  const matches: ExtraMatch[] = [];
+
+  // A year, typed on its own.
+  const year = term.match(/^\d{3,4}$/)?.[0];
+  if (year) {
+    const rows = database
+      .prepare(
+        `SELECT id, preferred_name, birth_value, death_value FROM person
+         WHERE birth_value LIKE ? OR death_value LIKE ? LIMIT 25`,
+      )
+      .all(`${year}%`, `${year}%`) as Row[];
+    for (const row of rows) {
+      const born = String(row.birth_value ?? '').startsWith(year);
+      matches.push({
+        personId: row.id,
+        value: row.preferred_name,
+        kind: 'year',
+        score: 45,
+        context: born ? `born ${year}` : `passed ${year}`,
+      });
+    }
+  }
+
+  // A place someone was born in or died in.
+  const placeRows = database
+    .prepare(
+      `SELECT p.id, p.preferred_name, bp.display AS born_in, dp.display AS died_in
+       FROM person p
+       LEFT JOIN place bp ON bp.id = p.birth_place_id
+       LEFT JOIN place dp ON dp.id = p.death_place_id
+       WHERE bp.display LIKE ? OR dp.display LIKE ? LIMIT 25`,
+    )
+    .all(like, like) as Row[];
+  for (const row of placeRows) {
+    const bornThere = String(row.born_in ?? '').toLowerCase().includes(term.toLowerCase());
+    matches.push({
+      personId: row.id,
+      value: row.preferred_name,
+      kind: 'place',
+      score: 42,
+      context: bornThere ? `born in ${row.born_in}` : `passed in ${row.died_in}`,
+    });
+  }
+
+  const bioRows = database
+    .prepare('SELECT id, preferred_name, biography FROM person WHERE biography LIKE ? LIMIT 25')
+    .all(like) as Row[];
+  for (const row of bioRows) {
+    matches.push({
+      personId: row.id,
+      value: row.preferred_name,
+      kind: 'biography',
+      score: 35,
+      context: excerpt(row.biography, term),
+    });
+  }
+
+  const memoryRows = database
+    .prepare(
+      `SELECT mp.person_id, m.title, m.body FROM memory m
+       JOIN memory_person mp ON mp.memory_id = m.id
+       WHERE m.title LIKE ? OR m.body LIKE ? LIMIT 40`,
+    )
+    .all(like, like) as Row[];
+  for (const row of memoryRows) {
+    const inTitle = String(row.title ?? '').toLowerCase().includes(term.toLowerCase());
+    matches.push({
+      personId: row.person_id,
+      value: row.title,
+      kind: 'memory',
+      score: 30,
+      context: `in a memory — ${inTitle ? row.title : excerpt(row.body, term)}`,
+    });
+  }
+
+  const legacyRows = database
+    .prepare('SELECT person_id, title, body FROM legacy_entry WHERE title LIKE ? OR body LIKE ? LIMIT 40')
+    .all(like, like) as Row[];
+  for (const row of legacyRows) {
+    matches.push({
+      personId: row.person_id,
+      value: row.title ?? 'Legacy',
+      kind: 'legacy',
+      score: 30,
+      context: `in their legacy — ${excerpt(row.body, term)}`,
+    });
+  }
+
+  return matches;
 }
 
 /* ------------------------------------------------------------------ *
@@ -502,12 +627,16 @@ export function recordRevision(input: {
   oldValue?: string | null;
   newValue?: string | null;
   summary?: string | null;
+  /** The column this change touched, so it can be put back precisely. */
+  columnName?: string | null;
+  /** Structured before/after for values that span several columns, such as dates. */
+  payload?: unknown;
   actor: Actor;
 }) {
   db()
     .prepare(
-      `INSERT INTO revision (id, entity_type, entity_id, action, field, old_value, new_value, summary, user_id, user_name, created_at)
-       VALUES (@id, @entityType, @entityId, @action, @field, @oldValue, @newValue, @summary, @userId, @userName, @createdAt)`,
+      `INSERT INTO revision (id, entity_type, entity_id, action, field, old_value, new_value, summary, column_name, payload, user_id, user_name, created_at)
+       VALUES (@id, @entityType, @entityId, @action, @field, @oldValue, @newValue, @summary, @columnName, @payload, @userId, @userName, @createdAt)`,
     )
     .run({
       id: newId(),
@@ -518,6 +647,8 @@ export function recordRevision(input: {
       oldValue: input.oldValue ?? null,
       newValue: input.newValue ?? null,
       summary: input.summary ?? null,
+      columnName: input.columnName ?? null,
+      payload: input.payload === undefined ? null : JSON.stringify(input.payload),
       userId: input.actor.id,
       userName: input.actor.name,
       createdAt: now(),
@@ -725,7 +856,36 @@ export function updatePerson(personId: string, input: Partial<PersonInput>, acto
     )
     .run({ ...patch, id: personId, updatedAt: now(), actorId: actor.id });
 
+  // A date lives across several columns but is one thing to a human being, so
+  // it is recorded — and restored — as one change.
+  const dateColumns = (prefix: 'birth' | 'death') =>
+    [`${prefix}_value`, `${prefix}_precision`, `${prefix}_qualifier`, `${prefix}_end_value`, `${prefix}_after_sunset`, `${prefix}_text`];
+
+  const handled = new Set<string>();
+
+  for (const prefix of ['birth', 'death'] as const) {
+    const touched = dateColumns(prefix).filter((column) => columns.includes(column));
+    if (touched.length === 0) continue;
+    for (const column of dateColumns(prefix)) handled.add(column);
+
+    const capture = (source: Row) =>
+      Object.fromEntries(dateColumns(prefix).map((column) => [column, source[column] ?? null]));
+
+    recordRevision({
+      entityType: 'person',
+      entityId: personId,
+      action: 'update',
+      field: prefix === 'birth' ? 'Date of birth' : 'Date of passing',
+      oldValue: formatGregorian(dateFrom(before, prefix)) || null,
+      newValue: formatGregorian(dateFrom({ ...before, ...patch }, prefix)) || null,
+      columnName: prefix === 'birth' ? 'birth_date' : 'death_date',
+      payload: { before: capture(before), after: capture({ ...before, ...patch }) },
+      actor,
+    });
+  }
+
   for (const column of columns) {
+    if (handled.has(column)) continue;
     recordRevision({
       entityType: 'person',
       entityId: personId,
@@ -733,6 +893,7 @@ export function updatePerson(personId: string, input: Partial<PersonInput>, acto
       field: PERSON_FIELD_LABELS[column] ?? column,
       oldValue: before[column] === null || before[column] === undefined ? null : String(before[column]),
       newValue: patch[column] === null ? null : String(patch[column]),
+      columnName: column,
       actor,
     });
   }
@@ -984,7 +1145,74 @@ export function revisionsFor(entityType: string, entityId: string): Revision[] {
     summary: row.summary ?? null,
     userName: row.user_name ?? null,
     createdAt: row.created_at,
+    columnName: row.column_name ?? null,
+    revertable: !!row.column_name && row.action === 'update',
   }));
+}
+
+/**
+ * Put a value back the way it was.
+ *
+ * A revert is itself a change: the mistaken value is never erased from the
+ * record, it is simply no longer the current one. Only field edits can be
+ * reverted — undoing the *creation* of a person would be a deletion, which
+ * this application deliberately does not do.
+ */
+export function revertRevision(revisionId: string, actor: Actor): { personId: string; field: string } {
+  const row = db().prepare('SELECT * FROM revision WHERE id = ?').get(revisionId) as Row | undefined;
+  if (!row) throw new Error('That change could not be found.');
+  if (row.entity_type !== 'person' || row.action !== 'update' || !row.column_name) {
+    throw new Error('This kind of change cannot be undone automatically.');
+  }
+
+  const person = db().prepare('SELECT * FROM person WHERE id = ?').get(row.entity_id) as Row | undefined;
+  if (!person) throw new Error('That person could not be found.');
+
+  const restoreDate = row.column_name === 'birth_date' || row.column_name === 'death_date';
+
+  if (restoreDate) {
+    const payload = row.payload ? JSON.parse(row.payload) : null;
+    if (!payload?.before) throw new Error('There is no earlier value recorded for this date.');
+
+    const columns = Object.keys(payload.before);
+    db()
+      .prepare(
+        `UPDATE person SET ${columns.map((c) => `${c} = @${c}`).join(', ')}, updated_at = @updatedAt, updated_by = @actorId
+         WHERE id = @id`,
+      )
+      .run({ ...payload.before, id: row.entity_id, updatedAt: now(), actorId: actor.id });
+  } else {
+    db()
+      .prepare(
+        `UPDATE person SET ${row.column_name} = @value, updated_at = @updatedAt, updated_by = @actorId WHERE id = @id`,
+      )
+      .run({ value: row.old_value, id: row.entity_id, updatedAt: now(), actorId: actor.id });
+
+    // Names feed search, so they have to be rebuilt when one is restored.
+    const after = db().prepare('SELECT * FROM person WHERE id = ?').get(row.entity_id) as Row;
+    syncNames(row.entity_id, {
+      preferredName: after.preferred_name,
+      givenName: after.given_name,
+      familyName: after.family_name,
+      birthName: after.birth_name,
+      hebrewName: after.hebrew_name,
+    });
+  }
+
+  recordRevision({
+    entityType: 'person',
+    entityId: row.entity_id,
+    action: 'update',
+    field: row.field,
+    oldValue: row.new_value,
+    newValue: row.old_value,
+    summary: `Restored ${String(row.field ?? 'a value').toLowerCase()} to its earlier value`,
+    columnName: row.column_name,
+    payload: restoreDate && row.payload ? { before: JSON.parse(row.payload).after, after: JSON.parse(row.payload).before } : undefined,
+    actor,
+  });
+
+  return { personId: row.entity_id, field: row.field ?? 'value' };
 }
 
 export function recordView(userId: string, personId: string) {

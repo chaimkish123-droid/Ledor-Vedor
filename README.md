@@ -26,7 +26,7 @@ family
 Other commands:
 
 ```bash
-npm test             # 35 unit tests: calendar, relationships, canvas geometry
+npm test             # 40 unit tests: calendar, relationships, canvas geometry, history
 npm run seed         # rebuild the demonstration family from scratch
 npm run build        # production build
 ```
@@ -80,8 +80,21 @@ Dates may be exact, `c. 1928`, `1928 or 1929`, year-only, or unknown, and free
 text is preserved verbatim when it cannot be parsed. Events after nightfall roll
 to the next Hebrew day.
 
+**Search that reaches past names**
+
+A name, a Hebrew name, a maiden name or a nickname finds a person — and so does
+a year, a place, a line of their biography, a phrase from a memory, or something
+they used to say. Each result explains itself: *born in Kraków, Poland*,
+*in a memory — the bookbinding tools came from…*.
+
 **Nothing is destroyed.** Every edit records who, when, what field, and the
-previous value. Administrators can read the history from the profile.
+previous value. Administrators can read the history from a person's profile and
+put any earlier value back — restoring is recorded as a change of its own rather
+than erasing the mistake. A date is recorded and restored as one thing, so
+putting back `April 2, 1953` returns the exact date rather than just the year.
+
+**People are recorded as female or male**, or left unrecorded — in which case
+relationships simply read as *child*, *sibling*, *parent* rather than guessing.
 
 ---
 
@@ -99,13 +112,16 @@ src/lib/
 src/components/canvas/
   layout.ts          pure geometry: graph slice in, coordinates out
   FamilyCanvas.tsx   pan, zoom, focus mode, animation, expansion
-tests/               calendar, relationship, and layout geometry tests
+tests/               calendar, relationships, canvas geometry, history and search
 scripts/flows.mts    end-to-end browser check of the paths that write data
 ```
 
 `layout.ts` and `relationships.ts` are deliberately free of React and of the
 database, because a family tree that silently overlaps two cards — or quietly
 gets a cousin wrong — is one nobody trusts. Both are tested directly.
+
+Tests run against their own freshly seeded database in a temporary directory, so
+running them never touches a real family archive.
 
 ---
 
@@ -124,9 +140,8 @@ rather than colour alone, and `prefers-reduced-motion` respected throughout.
 Stated plainly rather than implied:
 
 - **Photographs.** The design deliberately works without them; upload is not built.
-- **Places** are stored and normalised but there is no map or "who else lived here".
-- **Search** covers names only so far — not yet years, places, or story text.
-- **Expansion preferences** persist for the session, not to the account.
+- **Places** are stored and normalised, and are searchable, but there is no map
+  or "who else lived here".
 - **Per-field privacy.** V1 is private-to-the-family; the schema is arranged so
   finer controls can be added without redesigning it.
 - **Sources and evidence.** Uncertainty is supported (`c. 1928`); academic

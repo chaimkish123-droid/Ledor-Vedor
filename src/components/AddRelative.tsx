@@ -143,13 +143,12 @@ export default function AddRelative({
 
           <fieldset>
             <legend className="mb-1 block text-[13px] uppercase tracking-wide text-ink-faint">
-              Referred to as
+              Recorded as
             </legend>
             <div className="flex gap-2">
               {[
-                ['female', 'She'],
-                ['male', 'He'],
-                ['other', 'They'],
+                ['female', 'Female'],
+                ['male', 'Male'],
               ].map(([value, label]) => (
                 <button
                   key={value}

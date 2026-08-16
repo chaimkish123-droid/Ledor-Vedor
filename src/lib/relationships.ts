@@ -9,7 +9,8 @@
  * place English appears, so the terms can be localised or softened later.
  */
 
-export type Gender = 'female' | 'male' | 'other' | null | undefined;
+/** Recorded as female or male; null simply means it has not been recorded yet. */
+export type Gender = 'female' | 'male' | null | undefined;
 
 /** Minimal graph interface, so this module is testable without a database. */
 export type GraphAccess = {

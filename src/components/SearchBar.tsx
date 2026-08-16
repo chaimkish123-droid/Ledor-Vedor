@@ -7,6 +7,7 @@ type Hit = {
   person: PersonSummary;
   matchedName: string;
   matchedKind: string;
+  context: string | null;
   relation: string | null;
 };
 
@@ -89,7 +90,7 @@ export default function SearchBar({ onPick }: { onPick: (personId: string) => vo
           if (event.key === 'Enter' && hits[active]) choose(hits[active]);
           if (event.key === 'Escape') setOpen(false);
         }}
-        placeholder="Search for anyone in the family"
+        placeholder="Search names, years, places, stories"
         aria-label="Search the family"
         role="combobox"
         aria-expanded={open}
@@ -127,14 +128,18 @@ export default function SearchBar({ onPick }: { onPick: (personId: string) => vo
                     {[
                       hit.person.lifespan,
                       hit.relation && hit.relation !== 'You' ? `your ${hit.relation}` : hit.relation,
-                      // Show why this person matched when it was not their main name.
-                      hit.matchedKind !== 'preferred' && hit.matchedName !== hit.person.preferredName
+                      // Say why this person came up, when it was not their main name.
+                      ['nickname', 'alternate', 'birth', 'hebrew'].includes(hit.matchedKind) &&
+                      hit.matchedName !== hit.person.preferredName
                         ? `also known as ${hit.matchedName}`
                         : null,
                     ]
                       .filter(Boolean)
                       .join(' · ')}
                   </span>
+                  {hit.context && (
+                    <span className="block truncate text-[13px] text-sage-deep/80">{hit.context}</span>
+                  )}
                 </span>
               </button>
             </li>

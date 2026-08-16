@@ -18,8 +18,28 @@ export function db(): Database.Database {
 
   const schemaPath = path.join(process.cwd(), 'src', 'lib', 'schema.sql');
   database.exec(readFileSync(schemaPath, 'utf8'));
+  migrate(database);
 
   return database;
+}
+
+/**
+ * Additive migrations. A family archive is meant to outlive its schema, so
+ * columns are added in place rather than by rebuilding anyone's database.
+ */
+function migrate(database: Database.Database) {
+  const columnsOf = (table: string) =>
+    (database.pragma(`table_info(${table})`) as { name: string }[]).map((column) => column.name);
+
+  const addColumn = (table: string, column: string, definition: string) => {
+    if (!columnsOf(table).includes(column)) {
+      database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+  };
+
+  // Enough detail on each revision to put a value back exactly as it was.
+  addColumn('revision', 'column_name', 'TEXT');
+  addColumn('revision', 'payload', 'TEXT');
 }
 
 export function id(): string {

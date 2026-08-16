@@ -7,6 +7,7 @@ import { getPref } from '@/lib/repo';
 import { formatDate, formatGregorian, formatHebrew, type CalendarPreference } from '@/lib/dates';
 import type { PersonSummary } from '@/lib/types';
 import Contribute from './Contribute';
+import History from './History';
 
 export const dynamic = 'force-dynamic';
 
@@ -293,32 +294,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         {/* History, for those who look after the data. */}
         {detail.revisions.length > 0 && (
           <Section title="History">
-            <details className="rounded-2xl border border-stone-line bg-card px-5 py-4">
-              <summary className="cursor-pointer text-[15px] text-ink-soft">
-                {detail.revisions.length} recorded {detail.revisions.length === 1 ? 'change' : 'changes'}
-              </summary>
-              <ul className="mt-4 space-y-2.5">
-                {detail.revisions.map((revision) => (
-                  <li key={revision.id} className="text-[14px] text-ink-soft">
-                    <span className="text-ink">{revision.summary ?? revision.field ?? 'Updated'}</span>
-                    {revision.field && revision.action === 'update' && (
-                      <>
-                        {': '}
-                        <span className="line-through opacity-70">{revision.oldValue || 'empty'}</span>
-                        {' → '}
-                        <span>{revision.newValue || 'empty'}</span>
-                      </>
-                    )}
-                    <span className="text-ink-faint">
-                      {' '}
-                      · {revision.userName ?? 'Someone'} · {new Date(revision.createdAt).toLocaleDateString()}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </details>
+            <History revisions={detail.revisions} canRevert={user.role === 'admin'} />
           </Section>
         )}
+
       </main>
     </div>
   );
