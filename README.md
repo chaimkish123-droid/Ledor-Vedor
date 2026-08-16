@@ -26,12 +26,76 @@ family
 Other commands:
 
 ```bash
-npm test             # 40 unit tests: calendar, relationships, canvas geometry, history
+npm test             # 50 unit tests: calendar, relationships, geometry, history, backups, limits
 npm run seed         # rebuild the demonstration family from scratch
+npm run backup       # take a verified backup
+npm run restore      # list backups; `npm run restore -- <name>` puts one back
 npm run build        # production build
 ```
 
 Data lives in `data/family.db` (SQLite). Delete it to start over.
+
+---
+
+## Deploying it for a real family
+
+The demonstration family exists only in development. A production instance
+starts **empty**, and the first person to arrive creates the founding account at
+`/setup` — after which that page is gone for good, and everyone else joins by
+invitation.
+
+### As a container
+
+```bash
+docker build -t ldor-vador .
+docker volume create family-archive
+docker run -d --name ldor-vador \
+  -p 3000:3000 \
+  -v family-archive:/data \
+  ldor-vador
+```
+
+The image carries no data. Everything — the archive and its backups — lives on
+the `/data` volume, so redeploying the application never touches the family's
+history. The container runs as an unprivileged user and answers a health check
+at `/api/health`.
+
+This runs on anything that takes a container with a persistent disk: Fly.io
+(`fly launch`, then `fly volumes create family_archive`), Railway, Render, or a
+plain VPS. Put it behind HTTPS — session cookies are marked `secure` in
+production and will not survive plain HTTP.
+
+Serverless hosts such as Vercel are the one place this will **not** work as
+built: SQLite needs a disk that persists between requests.
+
+### Settings
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `LDOR_DATA_DIR` | `./data` | Where the archive lives. |
+| `LDOR_BACKUP_DIR` | `<data>/backups` | Where backups are written. |
+| `LDOR_BACKUP_HOURS` | `24` | Hours between automatic backups; `0` turns them off. |
+| `LDOR_BACKUP_KEEP` | `14` | How many backups to keep before pruning the oldest. |
+| `LDOR_SEED_DEMO` | off in production | Set `true` to load the demonstration family deliberately. |
+
+### Backups
+
+The application backs itself up on a schedule, because a small deployment
+usually has nowhere to put a cron job. Each backup is taken through SQLite's
+online backup API — never a file copy of a live database — and is then opened
+and integrity-checked before the old ones are pruned. An administrator can also
+take one on demand before doing anything drastic.
+
+Restoring keeps the archive it replaces, so a restore can never be the step that
+loses something:
+
+```bash
+npm run restore                 # list what is available
+npm run restore -- family-2026-08-16T05-12-48-263-scheduled.db
+```
+
+Copy the backup directory somewhere else regularly. A backup that lives on the
+same disk as the original is only half a backup.
 
 ---
 
@@ -96,6 +160,11 @@ putting back `April 2, 1953` returns the exact date rather than just the year.
 **People are recorded as female or male**, or left unrecorded — in which case
 relationships simply read as *child*, *sibling*, *parent* rather than guessing.
 
+**Getting in, and keeping others out.** The first account is created at `/setup`
+on a fresh installation; everyone after that arrives through a single-use
+invitation link that expires after two weeks. Sign-in, joining and setup are all
+rate limited. Pages are marked `noindex` and cannot be framed.
+
 ---
 
 ## Shape of the code
@@ -103,6 +172,8 @@ relationships simply read as *child*, *sibling*, *parent* rather than guessing.
 ```
 src/lib/
   hebrew.ts          Hebrew calendar conversion and gematria
+  backup.ts          verified backups, scheduled and on demand
+  rate-limit.ts      keeps password guessing slow without locking out a household
   dates.ts           flexible dates: approximate, partial, unknown
   schema.sql         the graph: person, union, parent_child, memory, legacy, revision
   repo.ts            reads, writes, neighbourhood slicing, duplicate detection
@@ -112,7 +183,7 @@ src/lib/
 src/components/canvas/
   layout.ts          pure geometry: graph slice in, coordinates out
   FamilyCanvas.tsx   pan, zoom, focus mode, animation, expansion
-tests/               calendar, relationships, canvas geometry, history and search
+tests/               calendar, relationships, geometry, history, backups, rate limits
 scripts/flows.mts    end-to-end browser check of the paths that write data
 ```
 

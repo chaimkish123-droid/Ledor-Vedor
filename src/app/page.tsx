@@ -1,13 +1,16 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/auth';
-import { ensureSeeded } from '@/lib/seed';
+import { ensureSeeded, needsFirstAccount } from '@/lib/seed';
 import { personCount } from '@/lib/repo';
 
 export const dynamic = 'force-dynamic';
 
 export default async function WelcomePage() {
   ensureSeeded();
+  // A brand new installation has nobody in it yet: someone has to go first.
+  if (needsFirstAccount()) redirect('/setup');
+
   const user = await currentUser();
   const people = personCount();
 

@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
-import { readFileSync } from 'node:fs';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { SCHEMA } from './schema';
 import { randomUUID, scryptSync, timingSafeEqual, randomBytes } from 'node:crypto';
 
 let database: Database.Database | null = null;
@@ -16,8 +16,7 @@ export function db(): Database.Database {
   database.pragma('journal_mode = WAL');
   database.pragma('foreign_keys = ON');
 
-  const schemaPath = path.join(process.cwd(), 'src', 'lib', 'schema.sql');
-  database.exec(readFileSync(schemaPath, 'utf8'));
+  database.exec(SCHEMA);
   migrate(database);
 
   return database;
@@ -40,6 +39,23 @@ function migrate(database: Database.Database) {
   // Enough detail on each revision to put a value back exactly as it was.
   addColumn('revision', 'column_name', 'TEXT');
   addColumn('revision', 'payload', 'TEXT');
+
+  // An invitation left in an old email should not open the family archive
+  // years later.
+  addColumn('invitation', 'expires_at', 'TEXT');
+}
+
+/**
+ * Release the connection. Needed before the database file is replaced from a
+ * backup: the next call to db() reopens it cleanly.
+ */
+export function closeDb() {
+  if (!database) return;
+  try {
+    database.close();
+  } finally {
+    database = null;
+  }
 }
 
 export function id(): string {

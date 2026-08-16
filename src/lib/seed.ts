@@ -316,8 +316,27 @@ export function seedFamily(): void {
   linkUserToPerson(userId, ref('michael'));
 }
 
-/** Seed once, on first run, so the family canvas is never empty. */
+/**
+ * Seed the demonstration family on first run — but only where it belongs.
+ *
+ * A real family's deployment must start empty: nobody wants to open their
+ * own archive and find the Kish family in it. Set LDOR_SEED_DEMO=true to
+ * bring the demonstration data into a production instance deliberately.
+ */
+export function demoSeedingAllowed(): boolean {
+  const explicit = process.env.LDOR_SEED_DEMO;
+  if (explicit !== undefined) return explicit === 'true';
+  return process.env.NODE_ENV !== 'production';
+}
+
 export function ensureSeeded(): void {
+  if (!demoSeedingAllowed()) return;
   if (personCount() > 0) return;
   db().transaction(() => seedFamily())();
+}
+
+/** True when nobody has an account yet, and the first one still has to be made. */
+export function needsFirstAccount(): boolean {
+  const row = db().prepare('SELECT COUNT(*) AS n FROM user').get() as { n: number };
+  return row.n === 0;
 }

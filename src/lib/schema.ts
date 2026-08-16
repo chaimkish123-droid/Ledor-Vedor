@@ -1,4 +1,12 @@
--- L'Dor VaDor — one connected family graph.
+/**
+ * The database schema.
+ *
+ * Kept as TypeScript rather than a .sql file read at runtime: a production
+ * build ships compiled output, not the source tree, and an archive that cannot
+ * find its own schema on start-up is a bad way to learn that.
+ */
+
+export const SCHEMA = `-- L'Dor VaDor — one connected family graph.
 --
 -- Design rules encoded here:
 --   * No relatives are hard-coded into person columns. Every relationship is an edge.
@@ -79,7 +87,7 @@ CREATE TABLE IF NOT EXISTS union_partner (
 );
 CREATE INDEX IF NOT EXISTS idx_union_partner_person ON union_partner(person_id);
 
--- Parent → child edge. `union_id` records which relationship the child belongs to.
+-- Parent → child edge. \`union_id\` records which relationship the child belongs to.
 CREATE TABLE IF NOT EXISTS parent_child (
   id         TEXT PRIMARY KEY,
   parent_id  TEXT NOT NULL REFERENCES person(id) ON DELETE CASCADE,
@@ -217,3 +225,4 @@ CREATE TABLE IF NOT EXISTS revision (
 );
 CREATE INDEX IF NOT EXISTS idx_revision_entity ON revision(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_revision_created ON revision(created_at);
+`;

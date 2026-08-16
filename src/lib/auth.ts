@@ -109,14 +109,30 @@ export function markOnboarded(userId: string) {
  * Invitations — the only way into a private family space.
  * ---------------------------------------------------------------- */
 
+/** Invitations are single use and stop working after two weeks. */
+export const INVITATION_DAYS = 14;
+
 export function createInvitation(input: { createdBy: string; note?: string; personId?: string | null }): string {
-  const code = randomBytes(9).toString('base64url');
+  const code = randomBytes(18).toString('base64url');
+  const expiresAt = new Date(Date.now() + INVITATION_DAYS * 86_400_000).toISOString();
   db()
     .prepare(
-      'INSERT INTO invitation (id, code, note, person_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      `INSERT INTO invitation (id, code, note, person_id, created_by, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(newId(), code, input.note ?? null, input.personId ?? null, input.createdBy, now());
+    .run(newId(), code, input.note ?? null, input.personId ?? null, input.createdBy, now(), expiresAt);
   return code;
+}
+
+export function invitationProblem(invitation: Record<string, any> | undefined): string | null {
+  if (!invitation) {
+    return 'That invitation link is not recognised. Ask the relative who invited you for a new one.';
+  }
+  if (invitation.used_by) return 'That invitation has already been used.';
+  if (invitation.expires_at && invitation.expires_at < now()) {
+    return 'That invitation has expired. Ask the relative who invited you for a new one.';
+  }
+  return null;
 }
 
 export function getInvitation(code: string) {
