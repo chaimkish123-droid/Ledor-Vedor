@@ -10,10 +10,12 @@ import type { CalendarPreference } from '@/lib/dates';
 export default function FamilyMenu({
   userName,
   calendar,
+  isAdmin,
   onCalendarChange,
 }: {
   userName: string;
   calendar: CalendarPreference;
+  isAdmin: boolean;
   onCalendarChange: (value: CalendarPreference) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -112,6 +114,23 @@ export default function FamilyMenu({
                 Invite a relative
               </button>
             )}
+          </div>
+
+          <div className="mt-4 space-y-2 border-t border-stone-line pt-4">
+            {isAdmin && (
+              <a
+                href="/import"
+                className="block rounded-lg border border-stone-line px-3 py-2.5 text-center text-[15px] text-ink transition-colors hover:border-sage"
+              >
+                Bring in a family tree
+              </a>
+            )}
+            <a
+              href="/api/export/gedcom"
+              className="block text-[14px] text-ink-soft underline underline-offset-2"
+            >
+              Download a copy of the family
+            </a>
           </div>
 
           <form action="/api/auth/signout" method="post" className="mt-4 border-t border-stone-line pt-4">

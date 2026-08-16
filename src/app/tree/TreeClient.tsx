@@ -315,7 +315,12 @@ export default function TreeClient({
             How are we related?
           </button>
 
-          <FamilyMenu userName={userName} calendar={calendar} onCalendarChange={changeCalendar} />
+          <FamilyMenu
+            userName={userName}
+            calendar={calendar}
+            isAdmin={isAdmin}
+            onCalendarChange={changeCalendar}
+          />
         </div>
       </header>
 

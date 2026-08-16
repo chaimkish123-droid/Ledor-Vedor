@@ -26,7 +26,7 @@ family
 Other commands:
 
 ```bash
-npm test             # 50 unit tests: calendar, relationships, geometry, history, backups, limits
+npm test             # 61 unit tests: calendar, relationships, geometry, history, GEDCOM
 npm run seed         # rebuild the demonstration family from scratch
 npm run backup       # take a verified backup
 npm run restore      # list backups; `npm run restore -- <name>` puts one back
@@ -160,6 +160,26 @@ putting back `April 2, 1953` returns the exact date rather than just the year.
 **People are recorded as female or male**, or left unrecorded — in which case
 relationships simply read as *child*, *sibling*, *parent* rather than guessing.
 
+**Bringing an existing tree in, and taking a copy out**
+
+If the family already has a tree in Ancestry, MyHeritage, FamilySearch or Geni,
+it comes in as a GEDCOM file rather than being retyped: names, maiden names,
+nicknames, Hebrew names, vague dates, places, marriages, adoptions and life
+events. Hebrew-calendar dates (`@#DHEBREW@ 3 KSL 5704`) are converted to the
+right civil day on the way in.
+
+Import is preview-then-confirm. The preview says what the file contains, which
+program wrote it, what could not be brought across, and who looks like someone
+already in the archive — tick *same person* and their relationships join the
+record we already have instead of creating a second one. Applying takes a
+verified backup first and runs in a single transaction: it either finishes
+completely or does nothing.
+
+Any family member can download the whole archive as GEDCOM, readable by any
+other genealogy program. Memories and legacy entries travel out as notes rather
+than being left behind. This history belongs to the family, not to this
+application.
+
 **Getting in, and keeping others out.** The first account is created at `/setup`
 on a fresh installation; everyone after that arrives through a single-use
 invitation link that expires after two weeks. Sign-in, joining and setup are all
@@ -172,6 +192,9 @@ rate limited. Pages are marked `noindex` and cannot be framed.
 ```
 src/lib/
   hebrew.ts          Hebrew calendar conversion and gematria
+  gedcom.ts          reading GEDCOM, including Hebrew-calendar dates
+  import-gedcom.ts   preview, then apply, behind a backup and a transaction
+  export-gedcom.ts   writing GEDCOM, so leaving is always possible
   backup.ts          verified backups, scheduled and on demand
   rate-limit.ts      keeps password guessing slow without locking out a household
   dates.ts           flexible dates: approximate, partial, unknown
@@ -183,7 +206,8 @@ src/lib/
 src/components/canvas/
   layout.ts          pure geometry: graph slice in, coordinates out
   FamilyCanvas.tsx   pan, zoom, focus mode, animation, expansion
-tests/               calendar, relationships, geometry, history, backups, rate limits
+tests/               calendar, relationships, geometry, history, backups, GEDCOM
+scripts/import-flow.mts  browser check of the import screen
 scripts/flows.mts    end-to-end browser check of the paths that write data
 ```
 
