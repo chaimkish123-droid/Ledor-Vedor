@@ -1,0 +1,47 @@
+# The application with HTTPS in front of it, for a server on the internet.
+#
+#   LDOR_DOMAIN=family.example.com docker compose -f docker-compose.https.yml up -d
+#
+# The archive lives on the volume, never in the image, so rebuilding the
+# application can never touch the family's history.
+services:
+  ldor-vador:
+    build: .
+    restart: unless-stopped
+    # Deliberately not published to the machine's own ports: everything from
+    # outside arrives through Caddy, over HTTPS.
+    expose:
+      - '3000'
+    volumes:
+      - family-archive:/data
+    environment:
+      LDOR_DATA_DIR: /data
+      LDOR_BACKUP_DIR: /data/backups
+      LDOR_BACKUP_HOURS: '24'
+      LDOR_BACKUP_KEEP: '14'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      LDOR_DOMAIN: ${LDOR_DOMAIN:?set LDOR_DOMAIN to the address people will type}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - ldor-vador
+
+volumes:
+  family-archive:
+  caddy-data:
+  caddy-config:

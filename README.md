@@ -39,13 +39,18 @@ Data lives in `data/family.db` (SQLite). Delete it to start over.
 
 ## Deploying it for a real family
 
-Two ways, depending on where you are:
+Three ways, depending on what you have:
 
 - **[RUNNING-AT-HOME.md](RUNNING-AT-HOME.md)** — free, on a machine you already
   own, in three stages: your own desk today, a temporary address when you want
   to show somebody, a permanent one when the family starts using it.
-- **[DEPLOYING.md](DEPLOYING.md)** — on a host, for about five a month, with
-  backups and a checklist of what to verify afterwards.
+- **[RUNNING-ON-ORACLE.md](RUNNING-ON-ORACLE.md)** — free indefinitely on a real
+  server, always on, nothing depending on a laptop at home. Every command
+  written out, including the two firewalls Oracle hides in different places.
+- **[DEPLOYING.md](DEPLOYING.md)** — on a paid host, for about five a month,
+  where somebody else keeps the machine alive.
+
+Whichever you pick, moving later is copying one file.
 
 In short:
 

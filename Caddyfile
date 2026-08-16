@@ -1,0 +1,14 @@
+# Caddy sits in front of the application and handles HTTPS.
+#
+# It gets a certificate from Let's Encrypt on its own and renews it forever,
+# which is the whole reason it is here: nobody should have to remember a
+# certificate expiry date for their family's archive.
+
+{$LDOR_DOMAIN} {
+	reverse_proxy ldor-vador:3000
+
+	# The real visitor's address, so rate limiting protects the right person.
+	header {
+		-Server
+	}
+}
