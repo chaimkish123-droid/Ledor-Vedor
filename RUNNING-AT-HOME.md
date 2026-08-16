@@ -52,6 +52,27 @@ Windows, shift-right-click inside it and choose *Open PowerShell window here*.
 Git is worth having later, because updating becomes `git pull` rather than
 downloading the whole thing again.
 
+> **Closing the PowerShell window deletes nothing.** It is a window onto your
+> computer, not the thing itself — the files stay in the folder and the
+> application keeps running in the background. It matters only in one way: a
+> fresh window starts in your home folder, not in the project, so commands like
+> `docker compose` will not find anything to run. To get back:
+>
+> ```powershell
+> cd C:\ldor-vador
+> dir
+> ```
+>
+> If that list includes `Dockerfile` and `docker-compose.yml`, you are in the
+> right place. If it does not — or if it says the path does not exist — find the
+> folder in File Explorer, click the address bar, copy what is there, and use
+> that after `cd` instead.
+>
+> One thing to watch for after unzipping: Windows often puts the contents inside
+> a *second* folder of the same name, so the real project is at
+> `C:\ldor-vador\Claude-code-main`. If `dir` shows a single folder and no
+> `Dockerfile`, `cd` into it.
+
 ### 3. Start it
 
 ```bash
@@ -60,6 +81,17 @@ docker compose up -d
 
 The first time takes a few minutes, because it is building everything. You will
 know it worked when the last line does not say `error`.
+
+The `-d` means *detached* — it does the work silently and hands you back the
+prompt, which is unnerving the first time because it looks like nothing
+happened. While you are getting started, leave it off:
+
+```bash
+docker compose up --build
+```
+
+Now you see every step as it goes, and the window stays busy until you press
+`Ctrl-C`. That is the version to run if anything seems stuck.
 
 ### 4. Open it
 
