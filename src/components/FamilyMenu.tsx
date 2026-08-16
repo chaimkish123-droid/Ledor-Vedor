@@ -118,12 +118,20 @@ export default function FamilyMenu({
 
           <div className="mt-4 space-y-2 border-t border-stone-line pt-4">
             {isAdmin && (
-              <a
-                href="/import"
-                className="block rounded-lg border border-stone-line px-3 py-2.5 text-center text-[15px] text-ink transition-colors hover:border-sage"
-              >
-                Bring in a family tree
-              </a>
+              <>
+                <a
+                  href="/import"
+                  className="block rounded-lg border border-stone-line px-3 py-2.5 text-center text-[15px] text-ink transition-colors hover:border-sage"
+                >
+                  Bring in a family tree
+                </a>
+                <a
+                  href="/merge"
+                  className="block rounded-lg border border-stone-line px-3 py-2.5 text-center text-[15px] text-ink transition-colors hover:border-sage"
+                >
+                  Find anyone recorded twice
+                </a>
+              </>
             )}
             <a
               href="/api/export/gedcom"

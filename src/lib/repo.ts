@@ -535,21 +535,44 @@ export type DuplicateCandidate = {
   confidence: number;
 };
 
-function nameSimilarity(a: string, b: string): number {
+/**
+ * Two name-words count as the same when one is how the family shortens the
+ * other: Ruth and Ruthie, Ari and Arieh, Ben and Benjamin. Families are full
+ * of these, and treating them as different names is how one person ends up
+ * recorded twice.
+ */
+function wordsMatch(first: string, second: string): boolean {
+  if (first === second) return true;
+  const [shorter, longer] = first.length <= second.length ? [first, second] : [second, first];
+  return shorter.length >= 3 && longer.startsWith(shorter);
+}
+
+export function nameSimilarity(a: string, b: string): number {
   const x = normalize(a);
   const y = normalize(b);
   if (!x || !y) return 0;
   if (x === y) return 1;
 
-  const xWords = new Set(x.split(' '));
-  const yWords = new Set(y.split(' '));
-  const shared = [...xWords].filter((w) => yWords.has(w)).length;
-  const union = new Set([...xWords, ...yWords]).size;
-  const jaccard = union ? shared / union : 0;
+  const xWords = x.split(' ').filter(Boolean);
+  const yWords = y.split(' ').filter(Boolean);
 
-  // Also reward a shared given name with a differing surname (maiden names).
-  const firstMatch = x.split(' ')[0] === y.split(' ')[0] ? 0.35 : 0;
-  return Math.min(1, jaccard + firstMatch);
+  const unmatched = [...yWords];
+  let shared = 0;
+  for (const word of xWords) {
+    const at = unmatched.findIndex((candidate) => wordsMatch(word, candidate));
+    if (at >= 0) {
+      shared += 1;
+      unmatched.splice(at, 1);
+    }
+  }
+
+  const total = Math.max(xWords.length, yWords.length);
+  const overlap = total ? shared / total : 0;
+
+  // A shared given name matters more than a shared surname, since half a family
+  // shares the surname and maiden names change.
+  const firstMatch = xWords[0] && yWords[0] && wordsMatch(xWords[0], yWords[0]) ? 0.3 : 0;
+  return Math.min(1, overlap + firstMatch);
 }
 
 export function findDuplicates(input: {

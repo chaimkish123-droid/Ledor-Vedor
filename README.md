@@ -26,7 +26,7 @@ family
 Other commands:
 
 ```bash
-npm test             # 67 unit tests: calendar, relationships, geometry, history, GEDCOM, photos
+npm test             # 78 unit tests: calendar, relationships, geometry, history, GEDCOM, merging
 npm run seed         # rebuild the demonstration family from scratch
 npm run backup       # take a verified backup
 npm run restore      # list backups; `npm run restore -- <name>` puts one back
@@ -200,6 +200,24 @@ other genealogy program. Memories and legacy entries travel out as notes rather
 than being left behind. This history belongs to the family, not to this
 application.
 
+**When someone is recorded twice**
+
+Several people adding to one archive, and trees arriving from other programs,
+eventually put the same human being in twice — with half their life on each
+copy, and the relationship engine seeing two people where there is one. An
+administrator can find likely duplicates (a shortened name counts: Ruth and
+Ruthie, Ari and Arieh, though a shared surname alone never does) and combine
+them.
+
+Merging shows both records side by side, asks only about the fields that
+actually disagree, and says what will move across. It refuses outright where the
+two are recorded as parent and child, or as married to each other — those are
+relationships to correct, not copies to fold together. Both names stay
+searchable afterwards, so nobody stops being findable by a name they had, and
+what the absorbed record held is kept in the history. It is the one action here
+that removes a record, so it takes a verified backup first and runs in a single
+transaction.
+
 **Getting in, and keeping others out.** The first account is created at `/setup`
 on a fresh installation; everyone after that arrives through a single-use
 invitation link that expires after two weeks. Sign-in, joining and setup are all
@@ -213,6 +231,7 @@ rate limited. Pages are marked `noindex` and cannot be framed.
 src/lib/
   hebrew.ts          Hebrew calendar conversion and gematria
   photos.ts          portraits, stored in the archive so backups include them
+  merge.ts           combining two records of one person, and finding them
   gedcom.ts          reading GEDCOM, including Hebrew-calendar dates
   import-gedcom.ts   preview, then apply, behind a backup and a transaction
   export-gedcom.ts   writing GEDCOM, so leaving is always possible
@@ -230,6 +249,7 @@ src/components/canvas/
 tests/               calendar, relationships, geometry, history, backups, GEDCOM
 scripts/import-flow.mts  browser check of the import screen
 scripts/photo-flow.mts   browser check of adding and removing a portrait
+scripts/merge-flow.mts   browser check of finding and combining a duplicate
 scripts/flows.mts    end-to-end browser check of the paths that write data
 ```
 

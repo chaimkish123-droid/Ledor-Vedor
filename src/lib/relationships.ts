@@ -61,6 +61,14 @@ export type Relationship = {
   half?: boolean;
   /** Legal rather than biological (adoption/step edges on the path). */
   legal?: boolean;
+  /**
+   * True when a step relationship is only *possibly* one: the person has fewer
+   * than two recorded parents, so someone married to their parent may well be
+   * their other parent, unrecorded.
+   */
+  uncertain?: boolean;
+  /** Gender of the relative the connection passes through, for wording. */
+  viaGender?: Gender;
 };
 
 const ORDINALS = [
@@ -191,11 +199,32 @@ export function relationship(graph: GraphAccess, fromId: string, toId: string): 
 
   // Step-parent / step-child, checked before in-law wording: the person who
   // raised you reads as a stepmother, never as a "father-in-law's wife".
+  //
+  // But calling someone a stepfather is a claim about a family, and with only
+  // one parent recorded it is a claim the data has not earned — he may simply
+  // be the father nobody has entered yet. In that case say what is actually
+  // known: "your mother's husband".
   for (const parentId of graph.parentsOf(fromId)) {
-    if (graph.spousesOf(parentId).includes(toId)) return { kind: 'step', generations: 1, through: { kind: 'parent' } };
+    if (graph.spousesOf(parentId).includes(toId)) {
+      return {
+        kind: 'step',
+        generations: 1,
+        through: { kind: 'parent' },
+        uncertain: graph.parentsOf(fromId).length < 2,
+        viaGender: graph.genderOf(parentId),
+      };
+    }
   }
   for (const parentId of graph.parentsOf(toId)) {
-    if (graph.spousesOf(parentId).includes(fromId)) return { kind: 'step', generations: 1, through: { kind: 'child' } };
+    if (graph.spousesOf(parentId).includes(fromId)) {
+      return {
+        kind: 'step',
+        generations: 1,
+        through: { kind: 'child' },
+        uncertain: graph.parentsOf(toId).length < 2,
+        viaGender: graph.genderOf(parentId),
+      };
+    }
   }
 
   // Married into the family: my spouse's relative.
@@ -297,6 +326,19 @@ export function describe(rel: Relationship, gender: Gender = null): string {
 
     case 'step': {
       const inner = rel.through ? describe(rel.through, gender) : 'relative';
+
+      // Only claim a step relationship where the family is fully enough
+      // recorded to support it.
+      if (rel.uncertain) {
+        const via = gendered(rel.viaGender, { female: 'mother', male: 'father', neutral: 'parent' });
+        if (rel.through?.kind === 'parent') {
+          const spouse = gendered(gender, { female: 'wife', male: 'husband', neutral: 'spouse' });
+          return `${via}'s ${spouse}`;
+        }
+        const childTerm = gendered(gender, { female: 'daughter', male: 'son', neutral: 'child' });
+        return `${gendered(rel.viaGender, { female: 'wife', male: 'husband', neutral: 'spouse' })}'s ${childTerm}`;
+      }
+
       return `step${inner}`;
     }
 
