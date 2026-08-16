@@ -15,13 +15,29 @@ export function createSession(userId: string): string {
   return token;
 }
 
+/**
+ * Whether the session cookie insists on HTTPS.
+ *
+ * It should, everywhere it is reachable from the internet. But somebody trying
+ * this on their own machine first, over plain http://localhost, would find that
+ * signing in appears to do nothing at all — the browser quietly declines to
+ * keep a secure cookie, and there is no error anywhere to explain it. That is a
+ * miserable first ten minutes, so it can be turned off deliberately for a
+ * machine on your own desk.
+ */
+function requireHttps(): boolean {
+  if (process.env.LDOR_COOKIE_SECURE === 'false') return false;
+  if (process.env.LDOR_COOKIE_SECURE === 'true') return true;
+  return process.env.NODE_ENV === 'production';
+}
+
 export async function setSessionCookie(token: string) {
   const store = await cookies();
   store.set(COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
-    secure: process.env.NODE_ENV === 'production',
+    secure: requireHttps(),
     maxAge: SESSION_DAYS * 86_400,
   });
 }

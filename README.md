@@ -39,8 +39,15 @@ Data lives in `data/family.db` (SQLite). Delete it to start over.
 
 ## Deploying it for a real family
 
-Full instructions, including backups and what to check afterwards, are in
-[DEPLOYING.md](DEPLOYING.md). In short:
+Two ways, depending on where you are:
+
+- **[RUNNING-AT-HOME.md](RUNNING-AT-HOME.md)** — free, on a machine you already
+  own, in three stages: your own desk today, a temporary address when you want
+  to show somebody, a permanent one when the family starts using it.
+- **[DEPLOYING.md](DEPLOYING.md)** — on a host, for about five a month, with
+  backups and a checklist of what to verify afterwards.
+
+In short:
 
 The demonstration family exists only in development. A production instance
 starts **empty**, and the first person to arrive creates the founding account at
