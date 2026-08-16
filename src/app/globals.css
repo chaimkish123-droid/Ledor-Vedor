@@ -1,0 +1,163 @@
+@import 'tailwindcss';
+
+/*
+ * L'Dor VaDor — warm, quiet, timeless.
+ * The family is the visual content; the interface should barely announce itself.
+ */
+
+@theme {
+  --color-parchment: #faf8f4;
+  --color-parchment-deep: #f3efe7;
+  --color-card: #ffffff;
+  --color-stone-line: #e2ddd3;
+  --color-ink: #2c2a26;
+  --color-ink-soft: #6b6660;
+  --color-ink-faint: #948e85;
+  --color-sage: #5c7a6b;
+  --color-sage-soft: #e8efea;
+  --color-sage-deep: #43604f;
+  --color-memorial: #f5f3ee;
+  --color-memorial-line: #ddd8cd;
+
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-hebrew: 'Frank Ruehl CLM', 'Times New Roman', serif;
+
+  --radius-card: 14px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-parchment);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* Older eyes first: nothing in this product is set smaller than 15px. */
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+h1, h2, h3, .serif {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+
+.hebrew {
+  font-family: var(--font-hebrew);
+  direction: rtl;
+  unicode-bidi: isolate;
+}
+
+/* Focus is always visible — keyboard users must never be lost. */
+:focus-visible {
+  outline: 2.5px solid var(--color-sage);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card-shadow {
+  box-shadow: 0 1px 2px rgb(44 42 38 / 0.04), 0 4px 12px rgb(44 42 38 / 0.05);
+}
+
+.panel-shadow {
+  box-shadow: -8px 0 32px rgb(44 42 38 / 0.08);
+}
+
+/* The canvas: a quiet paper field with a barely-there grain. */
+.canvas-field {
+  background-color: var(--color-parchment);
+  background-image: radial-gradient(circle at 1px 1px, rgb(44 42 38 / 0.045) 1px, transparent 0);
+  background-size: 32px 32px;
+  touch-action: none;
+}
+
+.canvas-moving {
+  cursor: grabbing;
+}
+
+/* Motion helps people keep their place; it is never decorative. */
+.tree-move {
+  transition: transform 620ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.node-move {
+  transition: transform 620ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 380ms ease;
+}
+
+.fade-in {
+  animation: fade-in 420ms ease both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.sheet-in {
+  animation: sheet-in 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 767px) {
+  .sheet-in {
+    animation-name: sheet-up;
+  }
+  @keyframes sheet-up {
+    from { opacity: 0; transform: translateY(32px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scrollbars, softened. */
+.soft-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.soft-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-stone-line);
+  border-radius: 999px;
+  border: 3px solid var(--color-parchment);
+}
+.soft-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
