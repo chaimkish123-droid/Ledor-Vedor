@@ -1,5 +1,87 @@
 # Putting L'Dor VaDor somewhere your family can reach it
 
+## Never done this before? Start here
+
+You need two accounts and about twenty minutes. No terminal, no commands.
+
+**What you are doing:** your code sits on GitHub. A hosting company reads it,
+builds it, and runs it at a web address. You give that address to your family.
+
+**What it costs:** roughly five US dollars a month. Prices change, so check the
+host's own page rather than trusting this line.
+
+### Before you start
+
+You need the code on GitHub, which it already is, and a card for the host. That
+is all.
+
+### Step by step, on Railway
+
+Railway is the gentlest of these because almost everything is done by clicking.
+
+1. Go to **railway.com** and sign in with your GitHub account.
+2. Press **New Project**, then **Deploy from GitHub repo**.
+3. Choose this repository. Railway will ask for permission to read it — that is
+   normal, and you can limit it to this one repository.
+4. It will find the `Dockerfile` on its own and start building. The first build
+   takes a few minutes. Watch the log; it should end with something like
+   *Compiled successfully*.
+5. **The important step.** Open your service, go to **Settings → Volumes**, and
+   add a volume mounted at exactly:
+
+   ```
+   /data
+   ```
+
+   This is where your family's archive lives. Without it, everything you enter
+   disappears the next time the application restarts. Do not skip this.
+6. Still in **Settings**, find **Networking** and press **Generate Domain**.
+   You will get an address like `ldor-vador-production.up.railway.app`.
+   HTTPS is automatic.
+7. Open that address. It should show **Begin your family's archive**. Create
+   your account — you are the first person, so you become the administrator.
+
+That is it. It is live.
+
+### If you would rather pay less and use the terminal
+
+Fly.io costs roughly half as much, and the `fly.toml` in this repository is
+already written for it:
+
+```bash
+# Install their tool once, then:
+fly auth login
+fly launch --no-deploy
+fly volumes create family_archive --size 3
+fly deploy
+```
+
+### The first things to do once it is live
+
+1. **Add yourself**, then a parent, then a grandparent. Check the tree looks
+   right.
+2. **Invite one relative** — the menu under your initials, top right. Send them
+   the link and make sure it works for them before inviting everyone.
+3. **Make a second administrator.** If you are the only one and you are
+   unreachable, nobody can help a relative who is locked out.
+4. **Copy a backup off the host.** See *Backups* below. This is the step people
+   skip and then regret.
+
+### When something goes wrong
+
+The build log and the application log are both in the host's dashboard, and
+almost every problem shows up plainly in one of them. Copy the red text and
+bring it back — that is usually enough to fix it in one go.
+
+Two that are worth knowing in advance:
+
+- **Everything disappeared after a restart** — the volume is missing or mounted
+  somewhere other than `/data`. Step 5.
+- **Signing in does nothing, or it forgets you immediately** — the address is
+  not on HTTPS. Session cookies refuse to travel over plain HTTP.
+
+---
+
 Everything here needs three things and nothing else:
 
 1. Somewhere that runs a container.
