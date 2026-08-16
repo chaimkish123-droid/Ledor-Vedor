@@ -26,7 +26,7 @@ family
 Other commands:
 
 ```bash
-npm test             # 61 unit tests: calendar, relationships, geometry, history, GEDCOM
+npm test             # 67 unit tests: calendar, relationships, geometry, history, GEDCOM, photos
 npm run seed         # rebuild the demonstration family from scratch
 npm run backup       # take a verified backup
 npm run restore      # list backups; `npm run restore -- <name>` puts one back
@@ -160,6 +160,26 @@ putting back `April 2, 1953` returns the exact date rather than just the year.
 **People are recorded as female or male**, or left unrecorded — in which case
 relationships simply read as *child*, *sibling*, *parent* rather than guessing.
 
+**Photographs — one each, and never required**
+
+A person may have a portrait: a face on their card, in search results, in the
+panel and at the top of their profile. There is deliberately no album. This is a
+family tree, and the photograph is there so you recognise someone at a glance,
+not so the application becomes a place to keep pictures. Adding a new one
+replaces the old; removing it returns them to their monogram, which is a
+finished design in its own right rather than a placeholder.
+
+The browser resizes an image before it is sent, so a twelve megabyte phone
+photograph never reaches the archive. The server checks the bytes really are an
+image — a stated content type is a claim, not a fact — and reads the true
+dimensions from the file header.
+
+Images are stored **in** the database rather than beside it. Everything else
+here is protected by copying one file, and photographs in a loose directory
+would fall outside that promise; a family would find the gap at the worst
+possible moment. A test asserts a portrait survives backup and restore byte for
+byte.
+
 **Bringing an existing tree in, and taking a copy out**
 
 If the family already has a tree in Ancestry, MyHeritage, FamilySearch or Geni,
@@ -192,6 +212,7 @@ rate limited. Pages are marked `noindex` and cannot be framed.
 ```
 src/lib/
   hebrew.ts          Hebrew calendar conversion and gematria
+  photos.ts          portraits, stored in the archive so backups include them
   gedcom.ts          reading GEDCOM, including Hebrew-calendar dates
   import-gedcom.ts   preview, then apply, behind a backup and a transaction
   export-gedcom.ts   writing GEDCOM, so leaving is always possible
@@ -208,6 +229,7 @@ src/components/canvas/
   FamilyCanvas.tsx   pan, zoom, focus mode, animation, expansion
 tests/               calendar, relationships, geometry, history, backups, GEDCOM
 scripts/import-flow.mts  browser check of the import screen
+scripts/photo-flow.mts   browser check of adding and removing a portrait
 scripts/flows.mts    end-to-end browser check of the paths that write data
 ```
 
@@ -234,7 +256,6 @@ rather than colour alone, and `prefers-reduced-motion` respected throughout.
 
 Stated plainly rather than implied:
 
-- **Photographs.** The design deliberately works without them; upload is not built.
 - **Places** are stored and normalised, and are searchable, but there is no map
   or "who else lived here".
 - **Per-field privacy.** V1 is private-to-the-family; the schema is arranged so

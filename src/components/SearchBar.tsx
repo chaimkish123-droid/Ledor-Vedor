@@ -114,14 +114,24 @@ export default function SearchBar({ onPick }: { onPick: (personId: string) => vo
                   index === active ? 'bg-parchment' : ''
                 }`}
               >
-                <span
-                  aria-hidden
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] serif ${
-                    hit.person.living ? 'bg-sage-soft text-sage-deep' : 'bg-parchment-deep text-ink-faint'
-                  }`}
-                >
-                  {hit.person.initials}
-                </span>
+                {hit.person.photoId ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`/api/photos/${hit.person.photoId}?size=thumb`}
+                    alt=""
+                    aria-hidden
+                    className="h-9 w-9 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <span
+                    aria-hidden
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] serif ${
+                      hit.person.living ? 'bg-sage-soft text-sage-deep' : 'bg-parchment-deep text-ink-faint'
+                    }`}
+                  >
+                    {hit.person.initials}
+                  </span>
+                )}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] text-ink">{hit.person.preferredName}</span>
                   <span className="block truncate text-[13px] text-ink-faint">

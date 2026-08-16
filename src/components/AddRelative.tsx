@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Field } from './QuickView';
+import { Field } from './EditPersonForm';
 import type { PersonSummary } from '@/lib/types';
 
 type Relation = 'parent' | 'child' | 'sibling' | 'spouse';

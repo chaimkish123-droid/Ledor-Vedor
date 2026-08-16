@@ -43,6 +43,39 @@ function migrate(database: Database.Database) {
   // An invitation left in an old email should not open the family archive
   // years later.
   addColumn('invitation', 'expires_at', 'TEXT');
+
+  // The face shown on a person's card, when the family has given them one.
+  addColumn('person', 'primary_photo_id', 'TEXT');
+
+  /*
+   * A person may have one photograph: their portrait, shown on their card and
+   * at the top of their profile. There is deliberately no album — this is a
+   * family tree, and the face is there to help you recognise someone, not to
+   * become a photo library.
+   *
+   * The image is stored in the database rather than as a loose file, because
+   * everything else about this archive is protected by copying one file.
+   * Photographs sitting in a directory beside it would fall outside that
+   * promise, and a family would find the gap at the worst possible moment.
+   */
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS photo (
+      id            TEXT PRIMARY KEY,
+      person_id     TEXT NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+      caption       TEXT,
+      taken_text    TEXT,
+      mime          TEXT NOT NULL,
+      bytes         INTEGER NOT NULL,
+      width         INTEGER,
+      height        INTEGER,
+      image         BLOB NOT NULL,
+      thumb         BLOB NOT NULL,
+      contributor_id TEXT REFERENCES user(id) ON DELETE SET NULL,
+      contributor_name TEXT,
+      created_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_photo_person ON photo(person_id);
+  `);
 }
 
 /**

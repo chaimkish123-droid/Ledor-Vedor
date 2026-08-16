@@ -14,6 +14,7 @@ import {
   unionsOfPerson,
 } from './repo';
 import type { PersonSummary, Union } from './types';
+import { portraitOf, type Portrait } from './photos';
 import { ageBetween, ageToday, formatDate, sortKey, type CalendarPreference } from './dates';
 
 export type RelatedPerson = PersonSummary & { relationLabel: string; edgeKind?: string };
@@ -35,6 +36,7 @@ export type PersonDetail = {
   families: FamilyGroup[];
   grandparents: PersonSummary[];
   grandchildren: PersonSummary[];
+  portrait: Portrait | null;
   memories: ReturnType<typeof memoriesFor>;
   legacy: ReturnType<typeof legacyFor>;
   events: ReturnType<typeof eventsFor>;
@@ -136,6 +138,7 @@ export function personDetail(
     families,
     grandparents: getSummaries(grandparentIds),
     grandchildren: getSummaries(grandchildIds).sort((a, b) => sortKey(a.birth) - sortKey(b.birth)),
+    portrait: portraitOf(personId),
     memories: memoriesFor(personId),
     legacy: legacyFor(personId),
     events: eventsFor(personId),

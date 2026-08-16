@@ -8,6 +8,7 @@ import { formatDate, formatGregorian, formatHebrew, type CalendarPreference } fr
 import type { PersonSummary } from '@/lib/types';
 import Contribute from './Contribute';
 import History from './History';
+import ProfileEdit from './ProfileEdit';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +49,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
 
   const person = detail.person;
   const deceased = !person.living;
+  const portrait = detail.portrait;
 
   // The timeline is assembled from facts, not typed twice by anyone.
   const timeline = [
@@ -116,19 +118,28 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         {/* Overview */}
         <section className="fade-in">
           <div className="flex items-start gap-5">
-            <span
-              aria-hidden
-              className={`serif flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-2xl ${
-                deceased ? 'bg-memorial text-ink-faint' : 'bg-sage-soft text-sage-deep'
-              }`}
-            >
-              {person.preferredName
-                .split(' ')
-                .map((word) => word[0])
-                .slice(0, 2)
-                .join('')
-                .toUpperCase()}
-            </span>
+            {portrait ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/api/photos/${portrait.id}?size=thumb`}
+                alt={`A photograph of ${person.preferredName}`}
+                className="h-20 w-20 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <span
+                aria-hidden
+                className={`serif flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-2xl ${
+                  deceased ? 'bg-memorial text-ink-faint' : 'bg-sage-soft text-sage-deep'
+                }`}
+              >
+                {person.preferredName
+                  .split(' ')
+                  .map((word) => word[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase()}
+              </span>
+            )}
 
             <div className="min-w-0 flex-1">
               <h1 className="serif text-3xl leading-tight text-ink sm:text-4xl">{person.preferredName}</h1>
@@ -155,6 +166,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           {person.biography && (
             <p className="serif mt-7 text-[19px] leading-relaxed text-ink">{person.biography}</p>
           )}
+
+          <ProfileEdit detail={detail} />
         </section>
 
         {/* Legacy sits high on the page — it is the point of all this. */}

@@ -79,6 +79,8 @@ export type PersonSummary = {
   lifespan: string;
   initials: string;
   birthPlace: string | null;
+  /** The face on their card, when the family has given them one. */
+  photoId?: string | null;
 };
 
 export type Memory = {

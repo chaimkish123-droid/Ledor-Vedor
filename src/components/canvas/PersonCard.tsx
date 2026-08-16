@@ -54,16 +54,31 @@ export default function PersonCard({
         'focus-visible:opacity-100',
       ].join(' ')}
     >
-      {/* Monogram — the calm stand-in for a photograph. */}
-      <span
-        aria-hidden
-        className={[
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[15px] tracking-wide serif',
-          deceased ? 'bg-white/70 text-ink-faint' : 'bg-sage-soft text-sage-deep',
-        ].join(' ')}
-      >
-        {person.initials}
-      </span>
+      {/* A face if the family has one, otherwise the monogram — which is a
+          complete design in its own right, not a placeholder. */}
+      {person.photoId ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`/api/photos/${person.photoId}?size=thumb`}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          className={[
+            'h-11 w-11 shrink-0 rounded-full object-cover',
+            deceased ? 'opacity-90 saturate-[0.85]' : '',
+          ].join(' ')}
+        />
+      ) : (
+        <span
+          aria-hidden
+          className={[
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[15px] tracking-wide serif',
+            deceased ? 'bg-white/70 text-ink-faint' : 'bg-sage-soft text-sage-deep',
+          ].join(' ')}
+        >
+          {person.initials}
+        </span>
+      )}
 
       <span className="min-w-0 flex-1 overflow-hidden">
         <span className="block truncate serif text-[17px] leading-tight text-ink">

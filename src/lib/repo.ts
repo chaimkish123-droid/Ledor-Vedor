@@ -52,6 +52,7 @@ function toSummary(row: Row): PersonSummary {
     lifespan: formatLifespan(birth, death, !!row.living),
     initials: initials(row.preferred_name),
     birthPlace: row.birth_place_display ?? null,
+    photoId: row.primary_photo_id ?? null,
   };
 }
 
