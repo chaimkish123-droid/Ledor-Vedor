@@ -59,13 +59,20 @@ const UNION_STATUS_WORDS: Record<string, string> = {
 
 export function personDetail(
   personId: string,
-  options: { viewerPersonId?: string | null; calendar?: CalendarPreference; includeHistory?: boolean } = {},
+  options: {
+    viewerPersonId?: string | null;
+    /** The account reading this, which decides what of it they may see. */
+    viewerUserId?: string | null;
+    calendar?: CalendarPreference;
+    includeHistory?: boolean;
+  } = {},
 ): PersonDetail | null {
   const person = getPerson(personId);
   if (!person) return null;
 
   const calendar = options.calendar ?? 'gregorian';
   const graph = dbGraph();
+  const viewer = { userId: options.viewerUserId ?? null, personId: options.viewerPersonId ?? null };
 
   const parentEdges = parentEdgesOfChild(personId);
   const parentSummaries = getSummaries(parentEdges.map((e) => e.parentId));
@@ -139,8 +146,8 @@ export function personDetail(
     grandparents: getSummaries(grandparentIds),
     grandchildren: getSummaries(grandchildIds).sort((a, b) => sortKey(a.birth) - sortKey(b.birth)),
     portrait: portraitOf(personId),
-    memories: memoriesFor(personId),
-    legacy: legacyFor(personId),
+    memories: memoriesFor(personId, viewer),
+    legacy: legacyFor(personId, viewer),
     events: eventsFor(personId),
     revisions: options.includeHistory ? revisionsFor('person', personId) : [],
     age: person.living ? ageToday(person.birth) : ageBetween(person.birth, person.death),

@@ -90,6 +90,8 @@ export type Memory = {
   dateText: string | null;
   provenance: string | null;
   contributorName: string | null;
+  contributorId: string | null;
+  visibility: 'family' | 'close' | 'private';
   createdAt: string;
   personIds: string[];
   people: { id: string; name: string }[];
@@ -104,6 +106,8 @@ export type LegacyEntry = {
   title: string | null;
   body: string;
   contributorName: string | null;
+  contributorId: string | null;
+  visibility: 'family' | 'close' | 'private';
   createdAt: string;
 };
 

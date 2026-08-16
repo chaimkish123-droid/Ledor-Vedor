@@ -11,6 +11,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     recordView(user.id, id);
     const detail = personDetail(id, {
       viewerPersonId: user.personId,
+      viewerUserId: user.id,
       calendar: (getPref(user.id, 'calendar') as CalendarPreference) ?? 'gregorian',
       includeHistory: user.role === 'admin',
     });

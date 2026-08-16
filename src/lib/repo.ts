@@ -1,4 +1,5 @@
 import { db, id as newId, normalize, now } from './db';
+import { canSee, type Viewer, type Visibility } from './visibility';
 import { formatGregorian, formatLifespan, sortKey, type FlexibleDate, UNKNOWN_DATE } from './dates';
 import type {
   Frontier,
@@ -360,7 +361,11 @@ export type SearchHit = {
   context?: string | null;
 };
 
-export function searchPersons(query: string, limit = 20): SearchHit[] {
+/**
+ * `viewer` is optional only so that callers with nobody signed in still work;
+ * when it is missing, nothing behind a visibility level is searched at all.
+ */
+export function searchPersons(query: string, limit = 20, viewer?: Viewer): SearchHit[] {
   const q = normalize(query);
   if (!q) return [];
 
@@ -393,7 +398,7 @@ export function searchPersons(query: string, limit = 20): SearchHit[] {
 
   // Beyond names: a year, a place, a line in someone's story. People remember
   // families in all of these ways, so all of them should find a person.
-  for (const extra of searchBeyondNames(query)) {
+  for (const extra of searchBeyondNames(query, viewer)) {
     const existing = seen.get(extra.personId);
     if (existing && existing.score >= extra.score) continue;
     seen.set(extra.personId, {
@@ -428,7 +433,7 @@ function excerpt(text: string, query: string, span = 70): string {
   return `${start > 0 ? '…' : ''}${slice.trim()}${start + span < text.length ? '…' : ''}`;
 }
 
-function searchBeyondNames(query: string): ExtraMatch[] {
+function searchBeyondNames(query: string, viewer?: Viewer): ExtraMatch[] {
   const term = query.trim();
   if (term.length < 2) return [];
 
@@ -491,28 +496,59 @@ function searchBeyondNames(query: string): ExtraMatch[] {
     });
   }
 
+  // Searching reads the text of memories, which makes it the likeliest place
+  // for a private one to leak. Every match is checked against the same rule
+  // that governs reading them directly.
   const memoryRows = database
     .prepare(
-      `SELECT mp.person_id, m.title, m.body FROM memory m
-       JOIN memory_person mp ON mp.memory_id = m.id
-       WHERE m.title LIKE ? OR m.body LIKE ? LIMIT 40`,
+      `SELECT m.id, m.title, m.body, m.visibility, m.contributor_id FROM memory m
+       WHERE m.title LIKE ? OR m.body LIKE ? LIMIT 60`,
     )
     .all(like, like) as Row[];
+
   for (const row of memoryRows) {
+    const subjects = (
+      database.prepare('SELECT person_id FROM memory_person WHERE memory_id = ?').all(row.id) as Row[]
+    ).map((subject) => subject.person_id as string);
+
+    const allowed =
+      !!viewer &&
+      canSee(viewer, {
+        visibility: (row.visibility ?? 'family') as Visibility,
+        contributorId: row.contributor_id ?? null,
+        subjectIds: subjects,
+      });
+    if (!allowed && (row.visibility ?? 'family') !== 'family') continue;
+
     const inTitle = String(row.title ?? '').toLowerCase().includes(term.toLowerCase());
-    matches.push({
-      personId: row.person_id,
-      value: row.title,
-      kind: 'memory',
-      score: 30,
-      context: `in a memory — ${inTitle ? row.title : excerpt(row.body, term)}`,
-    });
+    for (const personId of subjects) {
+      matches.push({
+        personId,
+        value: row.title,
+        kind: 'memory',
+        score: 30,
+        context: `in a memory — ${inTitle ? row.title : excerpt(row.body, term)}`,
+      });
+    }
   }
 
   const legacyRows = database
-    .prepare('SELECT person_id, title, body FROM legacy_entry WHERE title LIKE ? OR body LIKE ? LIMIT 40')
+    .prepare(
+      `SELECT person_id, title, body, visibility, contributor_id FROM legacy_entry
+       WHERE title LIKE ? OR body LIKE ? LIMIT 60`,
+    )
     .all(like, like) as Row[];
+
   for (const row of legacyRows) {
+    const allowed =
+      !!viewer &&
+      canSee(viewer, {
+        visibility: (row.visibility ?? 'family') as Visibility,
+        contributorId: row.contributor_id ?? null,
+        subjectIds: [row.person_id],
+      });
+    if (!allowed && (row.visibility ?? 'family') !== 'family') continue;
+
     matches.push({
       personId: row.person_id,
       value: row.title ?? 'Legacy',
@@ -1011,7 +1047,13 @@ export function findSharedUnion(personA: string, personB: string): string | null
  * Stories, legacy, events, revisions
  * ------------------------------------------------------------------ */
 
-export function memoriesFor(personId: string): Memory[] {
+/**
+ * A person's memories, as far as this viewer is allowed to read them.
+ *
+ * The viewer is required rather than optional: a signature that lets the caller
+ * forget it is a signature that eventually leaks somebody's private note.
+ */
+export function memoriesFor(personId: string, viewer: Viewer): Memory[] {
   const rows = db()
     .prepare(
       `SELECT m.* FROM memory m
@@ -1020,7 +1062,16 @@ export function memoriesFor(personId: string): Memory[] {
        ORDER BY m.created_at DESC`,
     )
     .all(personId) as Row[];
-  return rows.map(hydrateMemory);
+
+  return rows
+    .map(hydrateMemory)
+    .filter((memory) =>
+      canSee(viewer, {
+        visibility: memory.visibility,
+        contributorId: memory.contributorId,
+        subjectIds: memory.personIds,
+      }),
+    );
 }
 
 function hydrateMemory(row: Row): Memory {
@@ -1037,6 +1088,8 @@ function hydrateMemory(row: Row): Memory {
     dateText: row.date_text ?? null,
     provenance: row.provenance ?? null,
     contributorName: row.contributor_name ?? null,
+    contributorId: row.contributor_id ?? null,
+    visibility: (row.visibility ?? 'family') as Visibility,
     createdAt: row.created_at,
     personIds: people.map((p) => p.id),
     people,
@@ -1044,16 +1097,33 @@ function hydrateMemory(row: Row): Memory {
 }
 
 export function createMemory(
-  input: { title: string; body: string; dateText?: string; provenance?: string; personIds: string[] },
+  input: {
+    title: string;
+    body: string;
+    dateText?: string;
+    provenance?: string;
+    personIds: string[];
+    visibility?: Visibility;
+  },
   actor: Actor,
 ): string {
   const memoryId = newId();
   db()
     .prepare(
-      `INSERT INTO memory (id, title, body, date_text, provenance, contributor_id, contributor_name, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO memory (id, title, body, date_text, provenance, contributor_id, contributor_name, created_at, visibility)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(memoryId, input.title, input.body, input.dateText ?? null, input.provenance ?? null, actor.id, actor.name, now());
+    .run(
+      memoryId,
+      input.title,
+      input.body,
+      input.dateText ?? null,
+      input.provenance ?? null,
+      actor.id,
+      actor.name,
+      now(),
+      input.visibility ?? 'family',
+    );
 
   const link = db().prepare('INSERT OR IGNORE INTO memory_person (memory_id, person_id) VALUES (?, ?)');
   for (const personId of input.personIds) link.run(memoryId, personId);
@@ -1062,32 +1132,109 @@ export function createMemory(
   return memoryId;
 }
 
-export function legacyFor(personId: string): LegacyEntry[] {
+/**
+ * Changing or withdrawing something you wrote.
+ *
+ * Only the author. An administrator can look after family *facts* — that is
+ * what the revision history is for — but somebody else's memory is not theirs
+ * to rewrite. Withdrawing one records that it happened without keeping the
+ * words, since a memory taken back on purpose should not survive in the log.
+ */
+export function updateMemoryVisibility(
+  memoryId: string,
+  visibility: Visibility,
+  actor: Actor,
+): void {
+  const row = db().prepare('SELECT contributor_id, title FROM memory WHERE id = ?').get(memoryId) as
+    | { contributor_id: string | null; title: string }
+    | undefined;
+  if (!row) throw new Error('That memory could not be found.');
+  if (!actor.id || row.contributor_id !== actor.id) {
+    throw new Error('Only the person who wrote a memory can change who it is for.');
+  }
+
+  db().prepare('UPDATE memory SET visibility = ? WHERE id = ?').run(visibility, memoryId);
+  recordRevision({
+    entityType: 'memory',
+    entityId: memoryId,
+    action: 'update',
+    field: 'Who it is for',
+    summary: `Changed who can read "${row.title}"`,
+    actor,
+  });
+}
+
+export function deleteMemory(memoryId: string, actor: Actor, isAdmin = false): void {
+  const row = db().prepare('SELECT contributor_id, title FROM memory WHERE id = ?').get(memoryId) as
+    | { contributor_id: string | null; title: string }
+    | undefined;
+  if (!row) throw new Error('That memory could not be found.');
+
+  const isAuthor = !!actor.id && row.contributor_id === actor.id;
+  if (!isAuthor && !isAdmin) {
+    throw new Error('Only the person who wrote a memory can remove it.');
+  }
+
+  db().transaction(() => {
+    db().prepare('DELETE FROM memory_person WHERE memory_id = ?').run(memoryId);
+    db().prepare('DELETE FROM memory WHERE id = ?').run(memoryId);
+    recordRevision({
+      entityType: 'memory',
+      entityId: memoryId,
+      action: 'delete',
+      summary: `Withdrew a memory: "${row.title}"`,
+      actor,
+    });
+  })();
+}
+
+export function legacyFor(personId: string, viewer: Viewer): LegacyEntry[] {
   const rows = db()
     .prepare('SELECT * FROM legacy_entry WHERE person_id = ? ORDER BY created_at')
     .all(personId) as Row[];
-  return rows.map((row) => ({
-    id: row.id,
-    personId: row.person_id,
-    kind: row.kind,
-    title: row.title ?? null,
-    body: row.body,
-    contributorName: row.contributor_name ?? null,
-    createdAt: row.created_at,
-  }));
+
+  return rows
+    .map((row) => ({
+      id: row.id,
+      personId: row.person_id,
+      kind: row.kind,
+      title: row.title ?? null,
+      body: row.body,
+      contributorName: row.contributor_name ?? null,
+      contributorId: row.contributor_id ?? null,
+      visibility: (row.visibility ?? 'family') as Visibility,
+      createdAt: row.created_at,
+    }))
+    .filter((entry) =>
+      canSee(viewer, {
+        visibility: entry.visibility,
+        contributorId: entry.contributorId,
+        subjectIds: [entry.personId],
+      }),
+    );
 }
 
 export function createLegacy(
-  input: { personId: string; kind: string; title?: string; body: string },
+  input: { personId: string; kind: string; title?: string; body: string; visibility?: Visibility },
   actor: Actor,
 ): string {
   const entryId = newId();
   db()
     .prepare(
-      `INSERT INTO legacy_entry (id, person_id, kind, title, body, contributor_id, contributor_name, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO legacy_entry (id, person_id, kind, title, body, contributor_id, contributor_name, created_at, visibility)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(entryId, input.personId, input.kind, input.title ?? null, input.body, actor.id, actor.name, now());
+    .run(
+      entryId,
+      input.personId,
+      input.kind,
+      input.title ?? null,
+      input.body,
+      actor.id,
+      actor.name,
+      now(),
+      input.visibility ?? 'family',
+    );
 
   recordRevision({ entityType: 'legacy', entityId: entryId, action: 'create', summary: 'Added to legacy', actor });
   return entryId;

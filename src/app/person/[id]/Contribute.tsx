@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { VISIBILITIES, VISIBILITY_LABELS, VISIBILITY_NOTES, type Visibility } from '@/lib/visibility-labels';
 
 const LEGACY_KINDS = [
   { id: 'value', label: 'A value they stood for' },
@@ -24,6 +25,7 @@ export default function Contribute({ personId, personName }: { personId: string;
   const [dateText, setDateText] = useState('');
   const [provenance, setProvenance] = useState('');
   const [kind, setKind] = useState('value');
+  const [visibility, setVisibility] = useState<Visibility>('family');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,8 +37,8 @@ export default function Contribute({ personId, personName }: { personId: string;
     const endpoint = mode === 'memory' ? '/api/memories' : '/api/legacy';
     const payload =
       mode === 'memory'
-        ? { title, body, dateText, provenance, personIds: [personId] }
-        : { personId, kind, title, body };
+        ? { title, body, dateText, provenance, personIds: [personId], visibility }
+        : { personId, kind, title, body, visibility };
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -52,6 +54,7 @@ export default function Contribute({ personId, personName }: { personId: string;
     setBody('');
     setDateText('');
     setProvenance('');
+    setVisibility('family');
     router.refresh();
   };
 
@@ -144,6 +147,27 @@ export default function Contribute({ personId, personName }: { personId: string;
           </div>
         )}
       </div>
+
+      {/* Who this is for. Everyone is the ordinary case and stays the default. */}
+      <fieldset className="mt-5">
+        <legend className="mb-2 text-[13px] uppercase tracking-wide text-ink-faint">Who is this for</legend>
+        <div className="flex flex-wrap gap-2">
+          {VISIBILITIES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={visibility === option}
+              onClick={() => setVisibility(option)}
+              className={`rounded-full border px-4 py-2 text-[14px] transition-colors ${
+                visibility === option ? 'border-sage bg-sage-soft text-sage-deep' : 'border-stone-line text-ink-soft'
+              }`}
+            >
+              {VISIBILITY_LABELS[option]}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[13px] text-ink-faint">{VISIBILITY_NOTES[visibility]}</p>
+      </fieldset>
 
       {error && <p className="mt-3 text-[14px] text-red-700">{error}</p>}
 

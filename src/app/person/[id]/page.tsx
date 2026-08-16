@@ -5,10 +5,12 @@ import { ensureSeeded } from '@/lib/seed';
 import { personDetail } from '@/lib/person-detail';
 import { getPref } from '@/lib/repo';
 import { formatDate, formatGregorian, formatHebrew, type CalendarPreference } from '@/lib/dates';
+import { visibilityMarker } from '@/lib/visibility';
 import type { PersonSummary } from '@/lib/types';
 import Contribute from './Contribute';
 import History from './History';
 import ProfileEdit from './ProfileEdit';
+import MemoryCard from './MemoryCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +44,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   const calendar = (getPref(user.id, 'calendar') as CalendarPreference) ?? 'gregorian';
   const detail = personDetail(id, {
     viewerPersonId: user.personId,
+    viewerUserId: user.id,
     calendar,
     includeHistory: user.role === 'admin',
   });
@@ -186,9 +189,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
                   >
                     {entry.body}
                   </p>
-                  {entry.contributorName && (
-                    <p className="mt-2 text-[13px] text-ink-faint">Shared by {entry.contributorName}</p>
-                  )}
+                  <p className="mt-2 text-[13px] text-ink-faint">
+                    {[entry.contributorName && `Shared by ${entry.contributorName}`, visibilityMarker(entry.visibility)]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
                 </div>
               ))}
             </div>
@@ -271,32 +276,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           ) : (
             <div className="space-y-6">
               {detail.memories.map((memory) => (
-                <article key={memory.id} className="rounded-2xl border border-stone-line bg-card px-5 py-4">
-                  <h3 className="serif text-[19px] text-ink">{memory.title}</h3>
-                  <p className="mt-2 whitespace-pre-line text-[16px] leading-relaxed text-ink-soft">{memory.body}</p>
-                  <p className="mt-3 text-[13px] text-ink-faint">
-                    {[
-                      memory.contributorName && `Shared by ${memory.contributorName}`,
-                      memory.dateText,
-                      memory.provenance,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
-                  {memory.people.length > 1 && (
-                    <p className="mt-2 text-[13px] text-ink-faint">
-                      About{' '}
-                      {memory.people.map((linked, index) => (
-                        <span key={linked.id}>
-                          {index > 0 && ', '}
-                          <Link href={`/person/${linked.id}`} className="text-sage underline underline-offset-2">
-                            {linked.name}
-                          </Link>
-                        </span>
-                      ))}
-                    </p>
-                  )}
-                </article>
+                <MemoryCard
+                  key={memory.id}
+                  memory={memory}
+                  isAuthor={memory.contributorId === user.id}
+                  isAdmin={user.role === 'admin'}
+                />
               ))}
             </div>
           )}

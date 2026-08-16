@@ -48,6 +48,16 @@ function migrate(database: Database.Database) {
   addColumn('person', 'primary_photo_id', 'TEXT');
 
   /*
+   * Who a memory is for.
+   *
+   * Facts about a family are shared; what someone remembers is not always
+   * meant for every cousin and in-law. Existing entries stay visible to
+   * everyone, which is what they were written under.
+   */
+  addColumn('memory', 'visibility', "TEXT NOT NULL DEFAULT 'family'");
+  addColumn('legacy_entry', 'visibility', "TEXT NOT NULL DEFAULT 'family'");
+
+  /*
    * A person may have one photograph: their portrait, shown on their card and
    * at the top of their profile. There is deliberately no album — this is a
    * family tree, and the face is there to help you recognise someone, not to

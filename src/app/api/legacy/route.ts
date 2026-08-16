@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { actorOf, withUser } from '@/lib/api';
 import { createLegacy } from '@/lib/repo';
+import { isVisibility } from '@/lib/visibility';
 
 export async function POST(request: NextRequest) {
   return withUser(async (user) => {
@@ -12,6 +13,7 @@ export async function POST(request: NextRequest) {
         kind: body.kind ?? 'value',
         title: body.title || undefined,
         body: String(body.body),
+        visibility: isVisibility(body.visibility) ? body.visibility : 'family',
       },
       actorOf(user),
     );

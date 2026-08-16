@@ -7,7 +7,7 @@ import { describe, relationship } from '@/lib/relationships';
 export async function GET(request: NextRequest) {
   return withUser((user) => {
     const query = request.nextUrl.searchParams.get('q') ?? '';
-    const hits = searchPersons(query, 12);
+    const hits = searchPersons(query, 12, { userId: user.id, personId: user.personId });
     const graph = dbGraph();
 
     return {

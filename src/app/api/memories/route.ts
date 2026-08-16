@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { actorOf, withUser } from '@/lib/api';
 import { createMemory } from '@/lib/repo';
+import { isVisibility } from '@/lib/visibility';
 
 export async function POST(request: NextRequest) {
   return withUser(async (user) => {
@@ -13,6 +14,7 @@ export async function POST(request: NextRequest) {
         dateText: body.dateText || undefined,
         provenance: body.provenance || undefined,
         personIds: (body.personIds ?? []).filter(Boolean),
+        visibility: isVisibility(body.visibility) ? body.visibility : 'family',
       },
       actorOf(user),
     );

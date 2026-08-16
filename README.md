@@ -26,7 +26,7 @@ family
 Other commands:
 
 ```bash
-npm test             # 78 unit tests: calendar, relationships, geometry, history, GEDCOM, merging
+npm test             # 88 unit tests: calendar, relationships, geometry, GEDCOM, merging, privacy
 npm run seed         # rebuild the demonstration family from scratch
 npm run backup       # take a verified backup
 npm run restore      # list backups; `npm run restore -- <name>` puts one back
@@ -200,6 +200,30 @@ other genealogy program. Memories and legacy entries travel out as notes rather
 than being left behind. This history belongs to the family, not to this
 application.
 
+**Who a memory is for**
+
+Facts about a family are shared. What somebody *remembers* is not always meant
+for every cousin and in-law — a note about a living relative's illness, a rift,
+or something still being written. Memories and legacy entries carry one of three
+levels:
+
+- **Everyone in the family** — the default, and what an archive like this is for.
+- **Close family only** — the subject's parents, children, grandparents,
+  grandchildren, siblings and spouse, worked out from the family graph rather
+  than from a list anyone has to maintain. This is the thing a general
+  note-keeping tool cannot do.
+- **Just me for now** — a draft, readable only by whoever wrote it.
+
+Whoever wrote something can change that at any time, or withdraw it entirely.
+Nobody else can, including an administrator: privacy an administrator can look
+straight through is not privacy. An administrator can *remove* a memory the
+family needs removed, which is a different power from reading it.
+
+Two rules hold this up, and both are tested. Filtering happens where the data is
+read, so a memory nobody may see never reaches the browser. And **search filters
+by the same rule** — search reads the text of memories, which makes it the
+likeliest place for a private one to leak.
+
 **When someone is recorded twice**
 
 Several people adding to one archive, and trees arriving from other programs,
@@ -232,6 +256,8 @@ src/lib/
   hebrew.ts          Hebrew calendar conversion and gematria
   photos.ts          portraits, stored in the archive so backups include them
   merge.ts           combining two records of one person, and finding them
+  visibility.ts      who may read a memory, worked out from the family graph
+  visibility-labels.ts  the wording, safe to load in a browser
   gedcom.ts          reading GEDCOM, including Hebrew-calendar dates
   import-gedcom.ts   preview, then apply, behind a backup and a transaction
   export-gedcom.ts   writing GEDCOM, so leaving is always possible
@@ -250,6 +276,7 @@ tests/               calendar, relationships, geometry, history, backups, GEDCOM
 scripts/import-flow.mts  browser check of the import screen
 scripts/photo-flow.mts   browser check of adding and removing a portrait
 scripts/merge-flow.mts   browser check of finding and combining a duplicate
+scripts/privacy-flow.mts browser check across two accounts in two browsers
 scripts/flows.mts    end-to-end browser check of the paths that write data
 ```
 
@@ -278,8 +305,8 @@ Stated plainly rather than implied:
 
 - **Places** are stored and normalised, and are searchable, but there is no map
   or "who else lived here".
-- **Per-field privacy.** V1 is private-to-the-family; the schema is arranged so
-  finer controls can be added without redesigning it.
+- **Per-field privacy on facts.** Dates and relationships are shared with the
+  whole family; only memories and legacy entries carry visibility levels.
 - **Sources and evidence.** Uncertainty is supported (`c. 1928`); academic
   citation is intentionally out of scope for V1.
 
