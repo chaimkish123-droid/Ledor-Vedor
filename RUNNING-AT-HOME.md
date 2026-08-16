@@ -33,7 +33,7 @@ anything else.
 In a terminal — Terminal on a Mac, PowerShell on Windows:
 
 ```bash
-git clone https://github.com/chaimkish123-droid/claude-code.git ldor-vador
+git clone https://github.com/chaimkish123-droid/Claude-code.git ldor-vador
 cd ldor-vador
 ```
 

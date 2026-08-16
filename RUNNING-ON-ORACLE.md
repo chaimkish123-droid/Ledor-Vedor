@@ -146,7 +146,7 @@ The address it prints should be your server's IP.
 ## Part 5 — Start it
 
 ```bash
-git clone https://github.com/chaimkish123-droid/claude-code.git ldor-vador
+git clone https://github.com/chaimkish123-droid/Claude-code.git ldor-vador
 cd ldor-vador
 
 # Use your own address here
