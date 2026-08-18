@@ -40,7 +40,7 @@ anything else.
 **If you have Git**, in a terminal — Terminal on a Mac, PowerShell on Windows:
 
 ```bash
-git clone https://github.com/chaimkish123-droid/Claude-code.git ldor-vador
+git clone -b claude/ldor-vador-vision-qr7q80 https://github.com/chaimkish123-droid/Claude-code.git ldor-vador
 cd ldor-vador
 ```
 
