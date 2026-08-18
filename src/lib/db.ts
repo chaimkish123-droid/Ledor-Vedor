@@ -106,6 +106,36 @@ function migrate(database: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_photo_person ON photo(person_id);
   `);
+
+  /*
+   * Parents are added one at a time, and until recently the first one's link
+   * to the child stayed outside the marriage created for the second. The child
+   * then descended from two places at once and the canvas drew a line from
+   * each. Newly added parents no longer do this; these are the ones already
+   * recorded that way.
+   *
+   * Deliberately narrow: a link with no marriage is perfectly legitimate where
+   * the other parent is genuinely unknown, and those are left alone.
+   */
+  database.exec(`
+    UPDATE parent_child AS pc
+       SET union_id = (
+         SELECT sibling.union_id
+           FROM parent_child sibling
+           JOIN union_partner up
+             ON up.union_id = sibling.union_id AND up.person_id = pc.parent_id
+          WHERE sibling.child_id = pc.child_id AND sibling.union_id IS NOT NULL
+          LIMIT 1
+       )
+     WHERE pc.union_id IS NULL
+       AND EXISTS (
+         SELECT 1
+           FROM parent_child sibling
+           JOIN union_partner up
+             ON up.union_id = sibling.union_id AND up.person_id = pc.parent_id
+          WHERE sibling.child_id = pc.child_id AND sibling.union_id IS NOT NULL
+       );
+  `);
 }
 
 /**

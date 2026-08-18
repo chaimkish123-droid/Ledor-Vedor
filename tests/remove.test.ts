@@ -171,3 +171,113 @@ test('with two marriages it does not guess which family a child belongs to', () 
 
   assert.deepEqual(parentIdsOf(child), [twice], 'guessing a mother would be worse than asking');
 });
+
+/* ------------------------------------------------------------------ *
+ * One line per child.
+ * ------------------------------------------------------------------ */
+
+import { adoptEdgeIntoUnion, alignParentEdgesToUnions } from '../src/lib/repo.ts';
+
+/** What POST /api/person does for `relation: 'parent'`, in miniature. */
+function addParent(childId: string, name: string, existingParents: string[]) {
+  const parentId = person(name);
+  let unionId: string | null = null;
+  if (existingParents.length === 1) {
+    unionId = createUnion([existingParents[0], parentId], { status: 'married' }, actor);
+    adoptEdgeIntoUnion(existingParents[0], childId, unionId);
+  }
+  linkParentChild(parentId, childId, { unionId }, actor);
+  return parentId;
+}
+
+const unionsOfChild = (childId: string): (string | null)[] =>
+  (
+    db()
+      .prepare('SELECT union_id FROM parent_child WHERE child_id = ?')
+      .all(childId) as { union_id: string | null }[]
+  ).map((row) => row.union_id);
+
+test('parents added one at a time end up in the same marriage', () => {
+  const child = person('Shira One');
+  const father = addParent(child, 'Avi One', []);
+  addParent(child, 'Sara One', [father]);
+
+  const unions = new Set(unionsOfChild(child));
+  assert.equal(unions.size, 1, 'a child descending from two places is drawn twice');
+  assert.equal([...unions][0] !== null, true, 'and that one place is the marriage');
+});
+
+test('links already stored outside their marriage are repaired', () => {
+  const child = person('Shira Old');
+  const father = person('Avi Old');
+  const mother = person('Sara Old');
+  // The old behaviour, reproduced exactly.
+  linkParentChild(father, child, { unionId: null }, actor);
+  const unionId = createUnion([father, mother], { status: 'married' }, actor);
+  linkParentChild(mother, child, { unionId }, actor);
+  assert.equal(new Set(unionsOfChild(child)).size, 2, 'precondition: the broken shape');
+
+  const repaired = alignParentEdgesToUnions();
+
+  assert.ok(repaired >= 1);
+  assert.deepEqual(unionsOfChild(child), [unionId, unionId]);
+});
+
+test('a genuinely unknown other parent is left alone', () => {
+  const child = person('Yitzchak Alone');
+  const onlyParent = person('Rachel Alone');
+  linkParentChild(onlyParent, child, { unionId: null }, actor);
+
+  alignParentEdgesToUnions();
+
+  assert.deepEqual(unionsOfChild(child), [null], 'no marriage should be invented');
+});
+
+/* ------------------------------------------------------------------ *
+ * How many people descend from someone.
+ * ------------------------------------------------------------------ */
+
+import { descendantCounts } from '../src/lib/repo.ts';
+
+test('generations are counted separately, and totalled', () => {
+  const founder = person('Zaide Founder');
+  const kids = ['A', 'B'].map((n) => person(`Child ${n}`));
+  for (const kid of kids) linkParentChild(founder, kid, {}, actor);
+
+  const grandkids = ['C', 'D', 'E'].map((n) => person(`Grandchild ${n}`));
+  linkParentChild(kids[0], grandkids[0], {}, actor);
+  linkParentChild(kids[0], grandkids[1], {}, actor);
+  linkParentChild(kids[1], grandkids[2], {}, actor);
+
+  const great = person('Great-grandchild F');
+  linkParentChild(grandkids[0], great, {}, actor);
+
+  const counts = descendantCounts(founder);
+
+  assert.deepEqual(counts.generations, [2, 3, 1]);
+  assert.equal(counts.total, 6);
+});
+
+test('somebody reachable two ways is counted once, at the nearer generation', () => {
+  // Cousins who married: their child descends from the founder by two paths.
+  const founder = person('Zaide Twice');
+  const sonA = person('Son A');
+  const sonB = person('Son B');
+  linkParentChild(founder, sonA, {}, actor);
+  linkParentChild(founder, sonB, {}, actor);
+
+  const shared = person('Cousin Child');
+  linkParentChild(sonA, shared, {}, actor);
+  linkParentChild(sonB, shared, {}, actor);
+
+  const counts = descendantCounts(founder);
+
+  assert.deepEqual(counts.generations, [2, 1], 'the shared grandchild is one person, not two');
+  assert.equal(counts.total, 3);
+});
+
+test('a person with no children has nothing to count', () => {
+  const counts = descendantCounts(person('Nobody Descends'));
+  assert.deepEqual(counts.generations, []);
+  assert.equal(counts.total, 0);
+});

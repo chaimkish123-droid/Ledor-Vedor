@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { actorOf, withUser } from '@/lib/api';
 import { parseDateInput } from '@/lib/dates';
 import {
+  adoptEdgeIntoUnion,
   createPerson,
   createUnion,
   findSharedUnion,
@@ -56,6 +57,11 @@ export async function POST(request: NextRequest) {
         let unionId: string | null = null;
         if (existingParents.length === 1) {
           unionId = createUnion([existingParents[0], personId], { status: 'married' }, actor);
+          // The parent already there was recorded before this marriage existed,
+          // so their link still hangs off nobody. Left alone, the child descends
+          // from two places at once — the new marriage and the old lone parent —
+          // and the canvas draws two lines to them.
+          adoptEdgeIntoUnion(existingParents[0], anchorId, unionId);
         }
         linkParentChild(personId, anchorId, { unionId, kind: body.kind ?? 'biological' }, actor);
         break;

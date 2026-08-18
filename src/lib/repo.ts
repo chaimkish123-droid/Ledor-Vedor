@@ -1008,6 +1008,92 @@ export function createUnion(
   return unionId;
 }
 
+/**
+ * Put an existing parent-child link inside a marriage.
+ *
+ * Parents arrive one at a time: the first is recorded before there is any
+ * marriage to attach them to, and creating one for the second leaves the first
+ * still hanging off nobody. The child then descends from two places at once,
+ * and the canvas dutifully draws a line from each.
+ */
+export function adoptEdgeIntoUnion(parentId: string, childId: string, unionId: string) {
+  db()
+    .prepare('UPDATE parent_child SET union_id = ? WHERE parent_id = ? AND child_id = ? AND union_id IS NULL')
+    .run(unionId, parentId, childId);
+}
+
+/**
+ * The same repair for links already stored that way, run once on start-up.
+ *
+ * A link with no marriage is perfectly legitimate — a parent whose partner is
+ * genuinely unknown. This only touches the ones where the marriage is right
+ * there: the child has another parent inside a union, and this parent is a
+ * partner in it.
+ */
+export function alignParentEdgesToUnions(): number {
+  const result = db()
+    .prepare(
+      `UPDATE parent_child AS pc
+          SET union_id = (
+            SELECT sibling.union_id
+              FROM parent_child sibling
+              JOIN union_partner up
+                ON up.union_id = sibling.union_id AND up.person_id = pc.parent_id
+             WHERE sibling.child_id = pc.child_id
+               AND sibling.union_id IS NOT NULL
+             LIMIT 1
+          )
+        WHERE pc.union_id IS NULL
+          AND EXISTS (
+            SELECT 1
+              FROM parent_child sibling
+              JOIN union_partner up
+                ON up.union_id = sibling.union_id AND up.person_id = pc.parent_id
+             WHERE sibling.child_id = pc.child_id
+               AND sibling.union_id IS NOT NULL
+          )`,
+    )
+    .run();
+  return result.changes;
+}
+
+/**
+ * How many people descend from someone, by generation.
+ *
+ * On a great-grandparent's page this is the whole point of the archive in one
+ * line: a person who is a name and two dates to most of the family turns out to
+ * be the reason forty other people are in it. Counted by generation, because
+ * "children, grandchildren, great-grandchildren" is how families say it.
+ *
+ * Anyone reachable by more than one path — which happens in families that
+ * married cousins, and in step-relations — is counted once, in the nearest
+ * generation they belong to.
+ */
+export function descendantCounts(personId: string): { generations: number[]; total: number } {
+  const childrenOf = db().prepare('SELECT DISTINCT child_id FROM parent_child WHERE parent_id = ?');
+
+  const generations: number[] = [];
+  const seen = new Set<string>([personId]);
+  let frontier = [personId];
+
+  // A guard rather than a limit: real families do not reach twenty generations,
+  // and a cycle introduced by a mis-entered parent should not hang the page.
+  for (let depth = 0; depth < 20 && frontier.length; depth++) {
+    const next: string[] = [];
+    for (const id of frontier) {
+      for (const row of childrenOf.all(id) as { child_id: string }[]) {
+        if (seen.has(row.child_id)) continue;
+        seen.add(row.child_id);
+        next.push(row.child_id);
+      }
+    }
+    if (next.length) generations.push(next.length);
+    frontier = next;
+  }
+
+  return { generations, total: generations.reduce((sum, n) => sum + n, 0) };
+}
+
 export function linkParentChild(
   parentId: string,
   childId: string,

@@ -587,7 +587,7 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
   return {
     nodes,
     unionLines,
-    descentLines,
+    descentLines: oneLinePerChild(descentLines),
     bounds: {
       minX: xs.length ? Math.min(...xs) : 0,
       maxX: xs.length ? Math.max(...xs) : 0,
@@ -599,6 +599,28 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
 }
 
 /** Elbow path from a parental junction down to a child card. */
+
+/**
+ * One line down to each child.
+ *
+ * A child can be claimed twice: by the marriage they belong to and, separately,
+ * by a parent whose own link was recorded before that marriage existed — or by
+ * two units, where the parents sit apart because one of them remarried. Drawn
+ * literally, that is two lines arriving at the same card, which reads as a
+ * mistake in the family rather than in the drawing.
+ *
+ * The line from a marriage is the truer one, so it wins; otherwise the first
+ * found is kept, and the rest are dropped.
+ */
+function oneLinePerChild(lines: DescentLine[]): DescentLine[] {
+  const best = new Map<string, DescentLine>();
+  for (const line of lines) {
+    const existing = best.get(line.childId);
+    if (!existing || (!existing.unionId && line.unionId)) best.set(line.childId, line);
+  }
+  return lines.filter((line) => best.get(line.childId) === line);
+}
+
 export function descentPath(line: DescentLine): string {
   const midY = line.fromY + (line.toY - line.fromY) * 0.55;
   if (Math.abs(line.fromX - line.toX) < 0.5) {

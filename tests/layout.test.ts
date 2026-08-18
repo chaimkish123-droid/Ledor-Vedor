@@ -134,3 +134,43 @@ test('layout stays fast on the widest family in the seed', () => {
   assert.ok(layout.nodes.length > 10);
   assert.ok(elapsedMs < 150, `layout took ${elapsedMs}ms`);
 });
+
+/* ------------------------------------------------------------------ *
+ * One descent line per child — the visible half of the same bug.
+ * ------------------------------------------------------------------ */
+
+test('no child is drawn with two lines coming down to it', () => {
+  for (const name of ['Michael Kish', 'David Kish', 'Avraham Kish', 'Ruth Shapiro', 'Aviva Kish', 'Yaakov Kish']) {
+    const person = personOf(name);
+    const layout = layoutFamily(neighborhood(person.id), person.id);
+
+    const perChild = new Map<string, number>();
+    for (const line of layout.descentLines) {
+      perChild.set(line.childId, (perChild.get(line.childId) ?? 0) + 1);
+    }
+
+    for (const [childId, lines] of perChild) {
+      assert.equal(lines, 1, `${childId} has ${lines} lines descending to it in ${name}'s tree`);
+    }
+  }
+});
+
+test('a link left outside its marriage still draws only one line', () => {
+  // The shape the archive used to store: the father's link to the child has no
+  // marriage on it, the mother's has. The drawing must not believe both.
+  const person = personOf('Michael Kish');
+  const slice = structuredClone(neighborhood(person.id));
+  const withUnion = slice.parentEdges.find((edge) => edge.unionId);
+  assert.ok(withUnion, 'the seeded family should have a child inside a marriage');
+
+  const partner = slice.parentEdges.find(
+    (edge) => edge.childId === withUnion!.childId && edge.parentId !== withUnion!.parentId,
+  );
+  assert.ok(partner, 'and that child should have a second parent');
+  partner!.unionId = null; // break it exactly the way the old code did
+
+  const layout = layoutFamily(slice, person.id);
+  const lines = layout.descentLines.filter((line) => line.childId === withUnion!.childId);
+
+  assert.equal(lines.length, 1, 'the marriage wins; the stray link is not drawn again');
+});

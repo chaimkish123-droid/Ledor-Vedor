@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { currentUser } from '@/lib/auth';
 import { ensureSeeded } from '@/lib/seed';
 import { personDetail } from '@/lib/person-detail';
-import { getPref } from '@/lib/repo';
+import { descendantCounts, getPref } from '@/lib/repo';
 import { formatDate, formatGregorian, formatHebrew, type CalendarPreference } from '@/lib/dates';
 import { visibilityMarker } from '@/lib/visibility';
 import type { PersonSummary } from '@/lib/types';
@@ -200,6 +200,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           </Section>
         )}
 
+        {/* What they began */}
+        <Descendants personId={person.id} name={person.preferredName} />
+
         {/* Facts */}
         <Section title="Facts">
           <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
@@ -307,6 +310,49 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="serif mb-4 text-[13px] uppercase tracking-widest text-ink-faint">{title}</h2>
       {children}
     </section>
+  );
+}
+
+/**
+ * "Four children, eleven grandchildren, twenty-six great-grandchildren."
+ *
+ * On the page of somebody two or three generations back, this is the sentence
+ * the family actually wants — the reason the archive is called what it is. It
+ * says nothing at all for a person with no children, which is most people, so
+ * it appears only where there is something to say.
+ */
+const GENERATION_WORDS = [
+  ['child', 'children'],
+  ['grandchild', 'grandchildren'],
+  ['great-grandchild', 'great-grandchildren'],
+  ['great-great-grandchild', 'great-great-grandchildren'],
+] as const;
+
+function generationLabel(depth: number, count: number): string {
+  const known = GENERATION_WORDS[depth];
+  if (known) return `${count} ${count === 1 ? known[0] : known[1]}`;
+  const greats = 'great-'.repeat(depth - 1);
+  return `${count} ${greats}grandchild${count === 1 ? '' : 'ren'}`;
+}
+
+function Descendants({ personId, name }: { personId: string; name: string }) {
+  const { generations, total } = descendantCounts(personId);
+  if (total === 0) return null;
+
+  const parts = generations.map((count, depth) => generationLabel(depth, count));
+
+  return (
+    <Section title="Their generations">
+      <p className="text-[17px] leading-relaxed text-ink">
+        {parts.join(', ')}.
+      </p>
+      {generations.length > 1 && (
+        <p className="mt-1.5 text-[15px] text-ink-soft">
+          {total} {total === 1 ? 'person' : 'people'} in the archive descend from{' '}
+          {name.split(' ')[0]}.
+        </p>
+      )}
+    </Section>
   );
 }
 
