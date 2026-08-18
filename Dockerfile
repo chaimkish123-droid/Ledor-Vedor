@@ -21,6 +21,15 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
+# Gather the native SQLite binding and whatever helper packages it happens to
+# need. Naming them one by one in the runner stage breaks the build outright
+# the day better-sqlite3 changes its dependencies — which it has: v13 dropped
+# `bindings` and `file-uri-to-path`. Copy what is actually there instead.
+RUN mkdir -p /native && cp -R node_modules/better-sqlite3 /native/ \
+    && for pkg in bindings file-uri-to-path node-addon-api node-gyp-build prebuild-install; do \
+         if [ -d "node_modules/$pkg" ]; then cp -R "node_modules/$pkg" /native/; fi; \
+       done
+
 FROM node:22-slim AS runner
 WORKDIR /app
 
@@ -41,9 +50,7 @@ COPY --from=builder --chown=family:family /app/public ./public
 COPY --from=builder --chown=family:family /app/.next/standalone ./
 COPY --from=builder --chown=family:family /app/.next/static ./.next/static
 # The native SQLite binding is not traced into the standalone bundle.
-COPY --from=builder --chown=family:family /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
-COPY --from=builder --chown=family:family /app/node_modules/bindings ./node_modules/bindings
-COPY --from=builder --chown=family:family /app/node_modules/file-uri-to-path ./node_modules/file-uri-to-path
+COPY --from=builder --chown=family:family /native ./node_modules/
 
 USER family
 EXPOSE 3000
