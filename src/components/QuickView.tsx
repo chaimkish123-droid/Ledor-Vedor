@@ -14,13 +14,14 @@ type Props = {
   onSelect: (personId: string) => void;
   onAddRelative: (anchorId: string, relation: 'parent' | 'child' | 'sibling' | 'spouse', unionId?: string | null) => void;
   onChanged: () => void;
+  isAdmin?: boolean;
 };
 
 /**
  * Screen 3 — a panel over the canvas. The family tree stays visible behind it,
  * so choosing a relative here simply moves the tree rather than navigating away.
  */
-export default function QuickView({ personId, onClose, onFocus, onSelect, onAddRelative, onChanged }: Props) {
+export default function QuickView({ personId, onClose, onFocus, onSelect, onAddRelative, onChanged, isAdmin }: Props) {
   const [detail, setDetail] = useState<PersonDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -116,6 +117,11 @@ export default function QuickView({ personId, onClose, onFocus, onSelect, onAddR
           {editing ? (
             <EditPersonForm
               detail={detail}
+              canRemove={isAdmin}
+              onRemoved={() => {
+                onChanged();
+                onClose();
+              }}
               onCancel={() => setEditing(false)}
               onSaved={() => {
                 setEditing(false);

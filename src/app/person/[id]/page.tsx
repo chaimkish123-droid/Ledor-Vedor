@@ -170,7 +170,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             <p className="serif mt-7 text-[19px] leading-relaxed text-ink">{person.biography}</p>
           )}
 
-          <ProfileEdit detail={detail} />
+          <ProfileEdit detail={detail} isAdmin={user.role === 'admin'} />
         </section>
 
         {/* Legacy sits high on the page — it is the point of all this. */}

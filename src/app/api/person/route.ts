@@ -62,9 +62,17 @@ export async function POST(request: NextRequest) {
       }
 
       case 'child': {
-        const unionId: string | null = body.unionId ?? null;
+        // A child belongs to a marriage, not to one parent. When the panel did
+        // not say which marriage — the plain "Add child" action — and there is
+        // only one it could mean, use it. Otherwise adding a child to a married
+        // couple silently records only one parent, and the other has to notice
+        // and fix it later, which nobody does.
+        let unionId: string | null = body.unionId ?? null;
+        if (!unionId) {
+          const unions = unionsOfPerson(anchorId);
+          if (unions.length === 1) unionId = unions[0].id;
+        }
         linkParentChild(anchorId, personId, { unionId, kind: body.kind ?? 'biological' }, actor);
-        // A child of a marriage belongs to both partners.
         if (unionId) {
           const union = unionsOfPerson(anchorId).find((u) => u.id === unionId);
           for (const partnerId of union?.partnerIds ?? []) {

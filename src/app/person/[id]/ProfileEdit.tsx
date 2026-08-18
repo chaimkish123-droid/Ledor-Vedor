@@ -17,7 +17,7 @@ import type { PersonDetail } from '@/lib/person-detail';
  * has one portrait: adding another replaces it, and removing it returns them
  * to their monogram.
  */
-export default function ProfileEdit({ detail }: { detail: PersonDetail }) {
+export default function ProfileEdit({ detail, isAdmin = false }: { detail: PersonDetail; isAdmin?: boolean }) {
   const router = useRouter();
   const person = detail.person!;
   const [editing, setEditing] = useState(false);
@@ -37,6 +37,8 @@ export default function ProfileEdit({ detail }: { detail: PersonDetail }) {
         <h2 className="serif mb-4 text-[20px] text-ink">Correcting {person.preferredName.split(' ')[0]}&rsquo;s details</h2>
         <EditPersonForm
           detail={detail}
+          canRemove={isAdmin}
+          onRemoved={() => router.push('/tree')}
           onCancel={() => setEditing(false)}
           onSaved={() => {
             setEditing(false);

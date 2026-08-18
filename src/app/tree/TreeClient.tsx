@@ -416,6 +416,7 @@ export default function TreeClient({
             if (anchor) setAdding({ anchor, relation, unionId });
           }}
           onChanged={load}
+          isAdmin={isAdmin}
         />
       )}
 
