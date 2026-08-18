@@ -22,6 +22,7 @@ export const CHIP_HEIGHT = 34;
 
 const COUPLE_GAP = 44; // space between two partners, where the junction sits
 const UNIT_GAP = 34; // between neighbouring family units in a row
+const FAMILY_GAP = 120; // between one set of siblings and the next along a row
 const ROW_GAP = 168; // vertical distance between generations
 
 export type PersonNode = {
@@ -362,7 +363,26 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
   };
 
   const rowCursor = new Map<number, number>();
+  const rowLast = new Map<number, Unit>();
   const placed = new Set<string>();
+
+  /*
+   * Which set of siblings a unit belongs to.
+   *
+   * Cousins genuinely share a generation with your brothers and sisters, so
+   * they belong on the same row — but drawn at even spacing the whole row reads
+   * as one undifferentiated line of relatives, and only the small print under
+   * each name says which are yours. Families that hang together should sit
+   * together, with visible air between them.
+   */
+  const familyOf = (unit: Unit): string => {
+    const edge = childEdges.find((e) => e.childId === unit.primaryId);
+    if (!edge) return `root:${unit.primaryId}`;
+    return edge.unionId ? `union:${edge.unionId}` : `parent:${edge.parentId}`;
+  };
+
+  const gapBefore = (unit: Unit, previous: Unit | undefined): number =>
+    previous && familyOf(previous) !== familyOf(unit) ? FAMILY_GAP : UNIT_GAP;
 
   function shift(unit: Unit, dx: number) {
     unit.x += dx;
@@ -394,7 +414,9 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
     }
 
     // Never overlap something already placed on this row.
-    const minCentre = (rowCursor.get(unit.generation) ?? -Infinity) + unit.width / 2;
+    const gap = gapBefore(unit, rowLast.get(unit.generation));
+    const edge = rowCursor.get(unit.generation);
+    const minCentre = edge === undefined ? -Infinity : edge + gap + unit.width / 2;
     if (centre < minCentre) {
       const delta = minCentre - centre;
       centre = minCentre;
@@ -403,7 +425,8 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
     }
 
     unit.x = centre;
-    rowCursor.set(unit.generation, centre + unit.width / 2 + UNIT_GAP);
+    rowCursor.set(unit.generation, centre + unit.width / 2);
+    rowLast.set(unit.generation, unit);
     return centre;
   }
 
@@ -423,7 +446,8 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
     for (let i = 1; i < row.length; i++) {
       const previous = row[i - 1];
       const current = row[i];
-      const minX = previous.x + previous.width / 2 + UNIT_GAP + current.width / 2;
+      const minX =
+        previous.x + previous.width / 2 + gapBefore(current, previous) + current.width / 2;
       if (current.x < minX) shift(current, minX - current.x);
     }
   }

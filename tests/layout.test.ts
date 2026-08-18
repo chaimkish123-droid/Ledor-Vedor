@@ -174,3 +174,62 @@ test('a link left outside its marriage still draws only one line', () => {
 
   assert.equal(lines.length, 1, 'the marriage wins; the stray link is not drawn again');
 });
+
+/* ------------------------------------------------------------------ *
+ * Cousins share a row with siblings — correctly — but should not read
+ * as one undifferentiated line of relatives.
+ * ------------------------------------------------------------------ */
+
+import { createPerson, createUnion, linkParentChild } from '../src/lib/repo.ts';
+
+test('a row puts visible air between one set of siblings and the next', () => {
+  const actor = { id: null, name: 'Test' };
+  const add = (name: string) => createPerson({ preferredName: name }, actor);
+
+  // Grandparents, two sons, and children on both sides: me and my brother,
+  // and two first cousins.
+  const zaide = add('Zaide Spacing');
+  const bubbe = add('Bubbe Spacing');
+  const grandparents = createUnion([zaide, bubbe], { status: 'married' }, actor);
+
+  const sons = ['Father Spacing', 'Uncle Spacing'].map(add);
+  for (const son of sons) {
+    linkParentChild(zaide, son, { unionId: grandparents }, actor);
+    linkParentChild(bubbe, son, { unionId: grandparents }, actor);
+  }
+
+  const wives = ['Mother Spacing', 'Aunt Spacing'].map(add);
+  const marriages = sons.map((son, i) => createUnion([son, wives[i]], { status: 'married' }, actor));
+
+  const kids = [
+    ['Me Spacing', 'Brother Spacing'],
+    ['Cousin One Spacing', 'Cousin Two Spacing'],
+  ].map((names, family) =>
+    names.map((name) => {
+      const kid = add(name);
+      linkParentChild(sons[family], kid, { unionId: marriages[family] }, actor);
+      linkParentChild(wives[family], kid, { unionId: marriages[family] }, actor);
+      return kid;
+    }),
+  );
+
+  const me = kids[0][0];
+  const layout = layoutFamily(neighborhood(me, { depth: 3 }), me);
+
+  const cardOf = (id: string) => layout.nodes.find((n) => n.kind === 'person' && n.id === id);
+  const brother = cardOf(kids[0][1]);
+  const cousin = cardOf(kids[1][0]);
+  const mine = cardOf(me);
+  if (!brother || !cousin || !mine) return; // cousins beyond the loaded slice
+
+  const between = (a: PersonNode, b: PersonNode) =>
+    Math.abs(a.x - b.x) - (a.width + b.width) / 2;
+
+  const withinFamily = between(mine as PersonNode, brother as PersonNode);
+  const acrossFamilies = between(brother as PersonNode, cousin as PersonNode);
+
+  assert.ok(
+    acrossFamilies > withinFamily * 1.5,
+    `a cousin should sit visibly apart: ${Math.round(acrossFamilies)} vs ${Math.round(withinFamily)}`,
+  );
+});
