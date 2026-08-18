@@ -6,6 +6,13 @@
 # a machine where everything looks correct. This is cheaper than that afternoon.
 * text=auto eol=lf
 
+# Except the files Windows itself runs. A .bat with Unix line endings works
+# most of the time and then does not, which is the worst kind of bug to
+# hand somebody who is already unsure.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
 # Never touch what is inside an image or an archive.
 *.png binary
 *.db binary

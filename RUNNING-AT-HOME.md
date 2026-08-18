@@ -75,51 +75,54 @@ downloading the whole thing again.
 
 ### 3. Start it
 
-```bash
-docker compose up -d
-```
+**On Windows, there is nothing to type.** Open the folder in File Explorer and
+double-click **`start.bat`**. It finds Docker, wakes it up if it is asleep,
+builds the application, waits until it is actually answering, and then opens it
+in your browser itself. If anything is wrong, it says what, in words. The first
+time takes a few minutes; after that it is seconds.
 
-The first time takes a few minutes, because it is building everything. You will
-know it worked when the last line does not say `error`.
+If Windows shows a blue *"Windows protected your PC"* box, that is only because
+it does not recognise the file — press **More info**, then **Run anyway**.
 
-The `-d` means *detached* — it does the work silently and hands you back the
-prompt, which is unnerving the first time because it looks like nothing
-happened. While you are getting started, leave it off:
+**On a Mac or Linux**, in the terminal:
 
 ```bash
 docker compose up --build
 ```
 
-Now you see every step as it goes, and the window stays busy until you press
-`Ctrl-C`. That is the version to run if anything seems stuck.
+You will see every step as it goes; the window stays busy until you press
+`Ctrl-C`. (Later, `docker compose up -d` does the same thing quietly in the
+background.)
 
 ### 4. Open it
 
-Go to **http://localhost:3000** in your browser.
+`start.bat` opens it for you. Otherwise, go to **http://localhost:3000** in
+your browser.
 
 You should see *Begin your family's archive*. Make your account — you are the
 first person, so you are the administrator.
 
-> **If signing in seems to do nothing**, stop the app (`docker compose down`),
-> open `docker-compose.yml`, and add this line under `environment:`
+> **If signing in seems to do nothing** and you did not use `start.bat`: some
+> browsers refuse to keep a login on a plain `http://` address. Stop the app,
+> then start it with
 >
-> ```yaml
->       LDOR_COOKIE_SECURE: 'false'
+> ```bash
+> LDOR_COOKIE_SECURE=false docker compose up -d
 > ```
 >
-> then `docker compose up -d` again. Some browsers refuse to keep a login on a
-> plain `http://` address, and this tells it to allow it while you are on your
-> own machine. Take the line out again if you later put it on the internet.
+> which tells it your own machine is allowed. (`start.bat` already does this.)
+> Do not set it anywhere the application faces the internet.
 
 ### 5. Have a go
 
 Add yourself, your parents, a grandparent. Try the search. Add a memory. See
 whether it is something you would actually want your family in.
 
-**To stop it:** `docker compose down`. Your data stays.
-**To start it again:** `docker compose up -d`.
-**To update it after I change something:** `git pull` then
-`docker compose up -d --build`.
+**To stop it:** double-click `stop.bat` — or `docker compose down`. Your data
+stays.
+**To start it again:** `start.bat` — or `docker compose up -d`.
+**To update it after I change something:** `git pull`, then start it again —
+or download the ZIP afresh, unzip over the old folder, and `start.bat`.
 
 ---
 

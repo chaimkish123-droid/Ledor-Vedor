@@ -14,10 +14,11 @@ services:
       LDOR_BACKUP_DIR: /data/backups
       LDOR_BACKUP_HOURS: '24'
       LDOR_BACKUP_KEEP: '14'
-      # Uncomment while trying this out on your own machine over http://localhost,
-      # where some browsers refuse to keep a login on a plain http:// address.
-      # Take it out again before putting this on the internet.
-      # LDOR_COOKIE_SECURE: 'false'
+      # On your own machine over http://localhost, browsers refuse to keep a
+      # login on a plain http:// address unless this is 'false'. start.bat sets
+      # it for you; setting it by hand works too. Leave it unset anywhere the
+      # application is reachable from the internet.
+      LDOR_COOKIE_SECURE: ${LDOR_COOKIE_SECURE:-}
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
