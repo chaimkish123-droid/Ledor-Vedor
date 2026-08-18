@@ -1069,7 +1069,12 @@ export function alignParentEdgesToUnions(): number {
  * married cousins, and in step-relations — is counted once, in the nearest
  * generation they belong to.
  */
-export function descendantCounts(personId: string): { generations: number[]; total: number } {
+export function descendantCounts(personId: string): {
+  generations: number[];
+  total: number;
+  /** People who married a descendant without descending from this person. */
+  marriedIn: number;
+} {
   const childrenOf = db().prepare('SELECT DISTINCT child_id FROM parent_child WHERE parent_id = ?');
 
   const generations: number[] = [];
@@ -1091,7 +1096,35 @@ export function descendantCounts(personId: string): { generations: number[]; tot
     frontier = next;
   }
 
-  return { generations, total: generations.reduce((sum, n) => sum + n, 0) };
+  /*
+   * The people who married in.
+   *
+   * Counted apart from the descendants rather than added to them: a
+   * great-grandmother has a number of great-grandchildren, and quietly
+   * inflating it with their husbands and wives would make the figure wrong.
+   * But a family is not only the bloodline — a daughter-in-law of fifty years
+   * is not a visitor — so the number is worth having beside it.
+   */
+  const partners = db().prepare(
+    `SELECT DISTINCT up2.person_id AS partner
+       FROM union_partner up1
+       JOIN union_partner up2 ON up2.union_id = up1.union_id AND up2.person_id != up1.person_id
+      WHERE up1.person_id = ?`,
+  );
+
+  const marriedIn = new Set<string>();
+  for (const descendant of seen) {
+    if (descendant === personId) continue;
+    for (const row of partners.all(descendant) as { partner: string }[]) {
+      if (!seen.has(row.partner)) marriedIn.add(row.partner);
+    }
+  }
+
+  return {
+    generations,
+    total: generations.reduce((sum, n) => sum + n, 0),
+    marriedIn: marriedIn.size,
+  };
 }
 
 export function linkParentChild(

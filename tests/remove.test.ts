@@ -281,3 +281,41 @@ test('a person with no children has nothing to count', () => {
   assert.deepEqual(counts.generations, []);
   assert.equal(counts.total, 0);
 });
+
+test('the people who married in are counted, but kept apart from the bloodline', () => {
+  const founder = person('Bubbe Root');
+  const son = person('Son Root');
+  const daughterInLaw = person('Wife Married-In');
+  const grandchild = person('Grandchild Root');
+
+  linkParentChild(founder, son, {}, actor);
+  const marriage = createUnion([son, daughterInLaw], { status: 'married' }, actor);
+  linkParentChild(son, grandchild, { unionId: marriage }, actor);
+  linkParentChild(daughterInLaw, grandchild, { unionId: marriage }, actor);
+
+  const counts = descendantCounts(founder);
+
+  assert.deepEqual(counts.generations, [1, 1], 'one son, one grandchild');
+  assert.equal(counts.total, 2, 'the daughter-in-law is not a descendant');
+  assert.equal(counts.marriedIn, 1, 'but she is family, and counted');
+});
+
+test('a spouse who is also a descendant is not counted twice', () => {
+  // Cousins who married: she descends from the founder and married in.
+  const founder = person('Zaide Cousins');
+  const sonA = person('Son Cousins A');
+  const sonB = person('Son Cousins B');
+  linkParentChild(founder, sonA, {}, actor);
+  linkParentChild(founder, sonB, {}, actor);
+
+  const cousinOne = person('Cousin One');
+  const cousinTwo = person('Cousin Two');
+  linkParentChild(sonA, cousinOne, {}, actor);
+  linkParentChild(sonB, cousinTwo, {}, actor);
+  createUnion([cousinOne, cousinTwo], { status: 'married' }, actor);
+
+  const counts = descendantCounts(founder);
+
+  assert.equal(counts.total, 4);
+  assert.equal(counts.marriedIn, 0, 'they were already in the family');
+});

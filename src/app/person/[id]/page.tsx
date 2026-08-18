@@ -336,10 +336,11 @@ function generationLabel(depth: number, count: number): string {
 }
 
 function Descendants({ personId, name }: { personId: string; name: string }) {
-  const { generations, total } = descendantCounts(personId);
+  const { generations, total, marriedIn } = descendantCounts(personId);
   if (total === 0) return null;
 
   const parts = generations.map((count, depth) => generationLabel(depth, count));
+  const firstName = name.split(' ')[0];
 
   return (
     <Section title="Their generations">
@@ -348,8 +349,14 @@ function Descendants({ personId, name }: { personId: string; name: string }) {
       </p>
       {generations.length > 1 && (
         <p className="mt-1.5 text-[15px] text-ink-soft">
-          {total} {total === 1 ? 'person' : 'people'} in the archive descend from{' '}
-          {name.split(' ')[0]}.
+          {total} {total === 1 ? 'person' : 'people'} in the archive descend from {firstName}
+          {marriedIn > 0 && (
+            <>
+              , and {marriedIn} more {marriedIn === 1 ? 'married' : 'married'} into the family —{' '}
+              {total + marriedIn} in all
+            </>
+          )}
+          .
         </p>
       )}
     </Section>
