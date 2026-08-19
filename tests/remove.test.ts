@@ -319,3 +319,42 @@ test('a spouse who is also a descendant is not counted twice', () => {
   assert.equal(counts.total, 4);
   assert.equal(counts.marriedIn, 0, 'they were already in the family');
 });
+
+/* ------------------------------------------------------------------ *
+ * A married name, and the name she was born with.
+ * ------------------------------------------------------------------ */
+
+import { getPerson, searchPersons } from '../src/lib/repo.ts';
+
+test('a woman marrying in is findable under both her names', () => {
+  const husband = person('Yosef Kaufman');
+  // What the add-a-spouse panel sends once the tick is left in place.
+  const wife = createPerson(
+    {
+      preferredName: 'Sara Kaufman',
+      givenName: 'Sara',
+      familyName: 'Kaufman',
+      birthName: 'Sara Goldberger',
+      gender: 'female',
+    },
+    actor,
+  );
+  createUnion([husband, wife], { status: 'married' }, actor);
+
+  const stored = getPerson(wife)!;
+  assert.equal(stored.preferredName, 'Sara Kaufman', 'known by her married name');
+  assert.equal(stored.birthName, 'Sara Goldberger', 'and the family she came from is kept');
+
+  const byMarried = searchPersons('Sara Kaufman').map((hit) => hit.person.id);
+  const byMaiden = searchPersons('Goldberger').map((hit) => hit.person.id);
+  assert.ok(byMarried.includes(wife), 'a cousin looking for her married name finds her');
+  assert.ok(byMaiden.includes(wife), 'and so does one who only ever knew her maiden name');
+});
+
+test('a name at birth is only kept when it differs', () => {
+  const wife = createPerson(
+    { preferredName: 'Rochel Stern', givenName: 'Rochel', familyName: 'Stern', gender: 'female' },
+    actor,
+  );
+  assert.equal(getPerson(wife)!.birthName, null, 'nothing invented where nothing changed');
+});

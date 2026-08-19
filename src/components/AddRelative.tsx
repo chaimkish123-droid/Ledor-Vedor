@@ -12,6 +12,28 @@ type Candidate = {
   confidence: number;
 };
 
+
+/*
+ * Marrying into the family, and the name that comes with it.
+ *
+ * A woman is recorded under her husband's family name and was born under her
+ * father's. Both matter: the first is what everyone calls her, the second is
+ * the thread back to the family she came from, and it is the fact most often
+ * lost — nobody writes it down at the time, and a generation later nobody can.
+ *
+ * So it is asked for at the only moment anyone is thinking about it, and
+ * asked as a statement of what happened rather than as two name fields.
+ */
+const surnameOf = (fullName: string): string => {
+  const words = fullName.trim().split(/\s+/).filter(Boolean);
+  return words.length > 1 ? words[words.length - 1] : '';
+};
+
+const givenPartOf = (fullName: string): string => {
+  const words = fullName.trim().split(/\s+/).filter(Boolean);
+  return words.length > 1 ? words.slice(0, -1).join(' ') : words.join(' ');
+};
+
 const RELATION_WORDS: Record<Relation, string> = {
   parent: 'parent',
   child: 'child',
@@ -40,6 +62,7 @@ export default function AddRelative({
   const [name, setName] = useState('');
   const [birth, setBirth] = useState('');
   const [gender, setGender] = useState<string>('');
+  const [tookTheName, setTookTheName] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [dismissedDuplicates, setDismissedDuplicates] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -73,7 +96,8 @@ export default function AddRelative({
         relation,
         unionId: relation === 'child' ? unionId ?? null : undefined,
         existingPersonId,
-        name,
+        name: useMarriedName ? marriedName : name,
+        birthName: useMarriedName && typedSurname ? name.trim() : undefined,
         birth: birth || undefined,
         gender: gender || undefined,
       }),
@@ -85,6 +109,19 @@ export default function AddRelative({
   };
 
   const showDuplicates = candidates.length > 0 && !dismissedDuplicates;
+
+  const familyName = surnameOf(anchor.preferredName);
+  const typedSurname = surnameOf(name);
+  /** Only worth asking where she is marrying in under a different name. */
+  const offerMarriedName =
+    relation === 'spouse' &&
+    gender === 'female' &&
+    familyName.length > 0 &&
+    name.trim().length > 0 &&
+    typedSurname.toLowerCase() !== familyName.toLowerCase();
+
+  const marriedName = `${givenPartOf(name)} ${familyName}`.trim();
+  const useMarriedName = offerMarriedName && tookTheName;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/20 p-0 sm:items-center sm:p-6">
@@ -163,6 +200,25 @@ export default function AddRelative({
               ))}
             </div>
           </fieldset>
+
+          {offerMarriedName && (
+            <label className="flex items-start gap-2.5 rounded-lg border border-stone-line bg-parchment px-3.5 py-3 text-[15px] leading-relaxed text-ink">
+              <input
+                type="checkbox"
+                checked={tookTheName}
+                onChange={(event) => setTookTheName(event.target.checked)}
+                className="mt-1 h-4 w-4 accent-[#7d8b6a]"
+              />
+              <span>
+                She took the <strong>{familyName}</strong> name when they married.
+                <span className="mt-0.5 block text-[13px] text-ink-faint">
+                  {typedSurname
+                    ? `Recorded as ${marriedName}, born ${name.trim()} — and found under both names.`
+                    : `Recorded as ${marriedName}.`}
+                </span>
+              </span>
+            </label>
+          )}
         </div>
 
         {showDuplicates && (

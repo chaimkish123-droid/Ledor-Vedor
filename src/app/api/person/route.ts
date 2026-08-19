@@ -36,6 +36,11 @@ export async function POST(request: NextRequest) {
             preferredName: String(body.name ?? '').trim(),
             givenName: String(body.name ?? '').trim().split(' ')[0] || null,
             familyName: String(body.name ?? '').trim().split(' ').slice(1).join(' ') || null,
+            // The name she was born with, where marrying changed it. Kept from
+            // the start rather than added later: a maiden name nobody wrote
+            // down at the time is the single most commonly lost fact in a
+            // family archive, and it is the one that connects two families.
+            birthName: body.birthName ? String(body.birthName).trim() : null,
             hebrewName: body.hebrewName || null,
             gender: body.gender || null,
             living: body.living ?? true,
