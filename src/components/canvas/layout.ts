@@ -104,6 +104,12 @@ export type Layout = {
 export type LayoutOptions = {
   /** Children beyond this count collapse into a "+ N more" chip. */
   collapseAfter?: number;
+  /**
+   * The same, for families off your direct line — your cousins, your nieces
+   * and nephews. Lower on purpose: they are the ones that turn a row into a
+   * wall of twenty cards.
+   */
+  collapseAside?: number;
   /** Groups the viewer opened, keyed `${parentId}:${unionId ?? 'none'}`. */
   expandedGroups?: Set<string>;
   /** Extra vertical breathing room. */
@@ -181,6 +187,7 @@ export function generations(slice: GraphSlice, focusId: string): Map<string, num
 
 export function layoutFamily(slice: GraphSlice, focusId: string, options: LayoutOptions = {}): Layout {
   const collapseAfter = options.collapseAfter ?? 6;
+  const collapseAside = options.collapseAside ?? 0;
   const expandedGroups = options.expandedGroups ?? new Set<string>();
   const rowGap = options.spacious ? ROW_GAP + 34 : ROW_GAP;
 
@@ -298,14 +305,32 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
     return result;
   };
 
-  /** Collapsed groups keep the canvas calm; the rest stay one tap away. */
+  /*
+   * Collapsed groups keep the canvas calm; the rest stay one tap away.
+   *
+   * Everyone descended from your direct line is shown: your brothers and
+   * sisters, your aunts and uncles, your own children. The families hanging off
+   * those — your cousins, your nieces and nephews — start closed, because they
+   * are what turns your generation into an unreadable row of twenty cards, and
+   * because a cousin is somebody you go looking for rather than somebody you
+   * need in view while finding your grandmother.
+   */
   const visibleChildren = (
     unit: Unit,
     group: { unionId: string | null; parentIds: string[]; childIds: string[] },
   ): string[] => {
     const key = `${group.parentIds[0]}:${group.unionId ?? 'none'}`;
-    if (expandedGroups.has(key) || group.childIds.length <= collapseAfter) return group.childIds;
-    return group.childIds.slice(0, collapseAfter);
+    if (expandedGroups.has(key)) return group.childIds;
+    const limit = focusPath.has(unit.primaryId) ? collapseAfter : collapseAside;
+    if (group.childIds.length <= limit) return group.childIds;
+
+    const shown = group.childIds.slice(0, limit);
+    // Whoever the canvas is centred on is always in it, wherever they fall in
+    // the birth order — collapsing the person you are looking at would be a
+    // strange way to answer the question you asked.
+    const onPath = group.childIds.find((id) => focusPath.has(id));
+    if (onPath && !shown.includes(onPath)) shown[Math.max(0, shown.length - 1)] = onPath;
+    return shown;
   };
 
   const parentUnitOf = (unit: Unit): Unit | null => {
@@ -444,13 +469,33 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
     return centre;
   }
 
+  /*
+   * Which units are on the canvas at all.
+   *
+   * A collapsed family is not merely undrawn — its people must not be placed
+   * either, or they appear as cards with nothing joining them to anybody,
+   * which looks like a fault rather than a folded-away branch.
+   */
+  const shownUnits = new Set<string>();
+  const walk = (unit: Unit) => {
+    if (shownUnits.has(unit.primaryId)) return;
+    shownUnits.add(unit.primaryId);
+    for (const child of childUnits(unit)) walk(child);
+  };
+  for (const root of roots) walk(root);
+  // Anyone whose parents are outside the loaded slice starts a line of their own.
+  for (const unit of units) if (!parentUnitOf(unit)) walk(unit);
+  walk(focusUnit);
+
+  const visible = units.filter((unit) => shownUnits.has(unit.primaryId));
+
   for (const root of roots) place(root);
-  for (const unit of units) if (!placed.has(unit.primaryId)) place(unit);
+  for (const unit of visible) if (!placed.has(unit.primaryId)) place(unit);
 
   // Safety net: guarantee no two units on a row can ever overlap, whatever
   // shape the data took.
   const byRow = new Map<number, Unit[]>();
-  for (const unit of units) {
+  for (const unit of visible) {
     const list = byRow.get(unit.generation) ?? [];
     list.push(unit);
     byRow.set(unit.generation, list);
@@ -483,7 +528,7 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
   const descentLines: DescentLine[] = [];
   const centreOf = new Map<string, { x: number; y: number }>();
 
-  for (const unit of units) {
+  for (const unit of visible) {
     const left = unit.x - unit.width / 2;
     const y = rowY(unit.generation);
 
@@ -552,13 +597,27 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
     return BEND_FACTORS[bendIndex.get(key)! % BEND_FACTORS.length];
   };
 
-  for (const unit of units) {
+  /*
+   * Everyone actually on the canvas.
+   *
+   * Somebody can be drawn without being a "visible child" of the family they
+   * came from: a spouse who married in is on screen because of their marriage,
+   * while their own parents' family may be folded away. Their line home should
+   * still be drawn — a card with no line to a parent sitting right above it
+   * looks like a mistake.
+   */
+  const drawn = new Set(visible.flatMap((unit) => unit.memberIds));
+
+  for (const unit of visible) {
     for (const group of childGroups(unit)) {
       const from = junctionFor(group.unionId, group.parentIds);
       if (!from) continue;
       const bend = bendFactorFor(group.unionId ?? `solo:${group.parentIds[0]}`);
 
-      const shown = visibleChildren(unit, group);
+      const opened = visibleChildren(unit, group);
+      const shown = group.childIds.filter(
+        (childId) => opened.includes(childId) || drawn.has(childId),
+      );
       for (const childId of shown) {
         const childCentre = centreOf.get(childId);
         if (!childCentre) continue;

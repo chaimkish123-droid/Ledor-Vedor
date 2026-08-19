@@ -311,3 +311,63 @@ test('lines belonging to different families almost never cross', () => {
   // like — the staggered bend heights scored between ten and thirty.
   assert.ok(total <= 4, `${total} crossings between different families is far too many`);
 });
+
+test('cousins start folded away, and open when asked', () => {
+  const actor = { id: null, name: 'Test' };
+  const add = (name: string) => createPerson({ preferredName: name }, actor);
+
+  const zaide = add('Zaide Folded');
+  const bubbe = add('Bubbe Folded');
+  const grandparents = createUnion([zaide, bubbe], { status: 'married' }, actor);
+
+  const sons = ['Father Folded', 'Uncle Folded'].map(add);
+  for (const son of sons) {
+    linkParentChild(zaide, son, { unionId: grandparents }, actor);
+    linkParentChild(bubbe, son, { unionId: grandparents }, actor);
+  }
+
+  const wives = ['Mother Folded', 'Aunt Folded'].map(add);
+  const marriages = sons.map((son, i) => createUnion([son, wives[i]], { status: 'married' }, actor));
+
+  const families = [
+    ['Me Folded', 'Brother Folded'],
+    ['Cousin A Folded', 'Cousin B Folded'],
+  ].map((names, side) =>
+    names.map((name) => {
+      const kid = add(name);
+      linkParentChild(sons[side], kid, { unionId: marriages[side] }, actor);
+      linkParentChild(wives[side], kid, { unionId: marriages[side] }, actor);
+      return kid;
+    }),
+  );
+
+  // Cousins only enter the slice once an ancestor is opened — which is exactly
+  // how the canvas loads them, and the point at which the row gets crowded.
+  const me = families[0][0];
+  const slice = neighborhood(me, { ancestorDepth: 3, expanded: [zaide, bubbe, sons[1]] });
+  const layout = layoutFamily(slice, me);
+  const shows = (id: string) => layout.nodes.some((n) => n.kind === 'person' && n.id === id);
+
+  assert.ok(shows(me), 'I am on the canvas');
+  assert.ok(shows(families[0][1]), 'my brother is on the canvas');
+  assert.ok(shows(sons[1]), 'my uncle is on the canvas');
+  assert.ok(!shows(families[1][0]), 'my cousin starts folded away');
+
+  const chip = layout.nodes.find(
+    (n) => n.kind === 'more' && (n.parentId === sons[1] || n.parentId === wives[1]),
+  );
+  assert.ok(chip, "my uncle's children sit behind a chip");
+  assert.equal(chip!.kind === 'more' && chip!.count, 2, 'and it says how many are behind it');
+
+  const opened = layoutFamily(slice, me, {
+    expandedGroups: new Set([
+      `${chip!.kind === 'more' ? chip!.parentId : ''}:${
+        chip!.kind === 'more' ? chip!.unionId ?? 'none' : ''
+      }`,
+    ]),
+  });
+  assert.ok(
+    opened.nodes.some((n) => n.kind === 'person' && n.id === families[1][0]),
+    'and one tap brings them in',
+  );
+});
