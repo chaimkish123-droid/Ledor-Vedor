@@ -342,6 +342,11 @@ export default function TreeClient({
             onRefocus={refocus}
             onToggleGroup={toggleGroup}
             onExpandPerson={expandPerson}
+            anythingOpen={expandedGroups.size > 0 || expanded.length > 0}
+            onFoldAll={() => {
+              setExpandedGroups(new Set());
+              setExpanded([]);
+            }}
           />
         )}
 

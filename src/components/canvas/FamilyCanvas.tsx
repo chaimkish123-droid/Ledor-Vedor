@@ -29,6 +29,10 @@ type Props = {
   onRefocus: (personId: string) => void;
   onToggleGroup: (key: string) => void;
   onExpandPerson: (personId: string, direction: 'up' | 'down') => void;
+  /** Fold every opened family back, when the canvas has grown unwieldy. */
+  onFoldAll: () => void;
+  /** Whether anything is open to fold. */
+  anythingOpen: boolean;
 };
 
 const MIN_ZOOM = 0.35;
@@ -49,6 +53,8 @@ export default function FamilyCanvas({
   onRefocus,
   onToggleGroup,
   onExpandPerson,
+  onFoldAll,
+  anythingOpen,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ width: 1200, height: 800 });
@@ -507,6 +513,17 @@ export default function FamilyCanvas({
         >
           ⊙
         </CanvasButton>
+        {/*
+          Opening a family is one tap and used to be permanent: the chip that
+          opened it disappears with it, and the canvas remembers what was open
+          between visits. A tree explored for ten minutes stayed sprawling for
+          good, with nothing to press.
+        */}
+        {anythingOpen && (
+          <CanvasButton label="Fold the family back to your own line" onClick={onFoldAll}>
+            ⤡
+          </CanvasButton>
+        )}
       </div>
     </div>
   );
