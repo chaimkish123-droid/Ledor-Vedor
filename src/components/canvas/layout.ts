@@ -22,7 +22,11 @@ export const CHIP_HEIGHT = 34;
 
 const COUPLE_GAP = 44; // space between two partners, where the junction sits
 const UNIT_GAP = 34; // between neighbouring family units in a row
-const FAMILY_GAP = 120; // between one set of siblings and the next along a row
+// Between one set of siblings and the next along a row. Wider than a card on
+// purpose: at 120 the break was there but not obvious, and a reader scanning a
+// row of twenty relatives needs the grouping to be unmistakable rather than
+// merely present.
+const FAMILY_GAP = 300;
 const ROW_GAP = 168; // vertical distance between generations
 
 export type PersonNode = {

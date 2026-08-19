@@ -229,7 +229,7 @@ test('a row puts visible air between one set of siblings and the next', () => {
   const acrossFamilies = between(brother as PersonNode, cousin as PersonNode);
 
   assert.ok(
-    acrossFamilies > withinFamily * 1.5,
-    `a cousin should sit visibly apart: ${Math.round(acrossFamilies)} vs ${Math.round(withinFamily)}`,
+    acrossFamilies > withinFamily + CARD_WIDTH,
+    `a cousin should sit a clear card's width apart: ${Math.round(acrossFamilies)} vs ${Math.round(withinFamily)}`,
   );
 });
