@@ -233,3 +233,42 @@ test('a row puts visible air between one set of siblings and the next', () => {
     `a cousin should sit a clear card's width apart: ${Math.round(acrossFamilies)} vs ${Math.round(withinFamily)}`,
   );
 });
+
+test('two families never turn their descent lines at the same height', () => {
+  const person = personOf('Michael Kish');
+  const layout = layoutFamily(neighborhood(person.id, { depth: 3 }), person.id);
+
+  // Group the bend heights by generation, then by family.
+  const byGeneration = new Map<number, Map<string, number>>();
+  for (const line of layout.descentLines) {
+    if (Math.abs(line.fromX - line.toX) < 0.5) continue; // straight down, no bend
+    const generation = Math.round(line.toY);
+    const families = byGeneration.get(generation) ?? new Map<string, number>();
+    families.set(line.unionId ?? `solo:${line.parentIds[0]}`, line.midY);
+    byGeneration.set(generation, families);
+  }
+
+  for (const [generation, families] of byGeneration) {
+    if (families.size < 2) continue;
+    const heights = [...families.values()];
+    assert.equal(
+      new Set(heights.map((h) => Math.round(h))).size,
+      heights.length,
+      `families on the row at ${generation} share a bend height, so their lines read as one bar`,
+    );
+  }
+});
+
+test('a bend still sits between the parents and their children', () => {
+  const person = personOf('Michael Kish');
+  const layout = layoutFamily(neighborhood(person.id, { depth: 3 }), person.id);
+
+  for (const line of layout.descentLines) {
+    const low = Math.min(line.fromY, line.toY);
+    const high = Math.max(line.fromY, line.toY);
+    assert.ok(
+      line.midY > low && line.midY < high,
+      `a line from ${line.parentIds[0]} bends outside the gap it is crossing`,
+    );
+  }
+});

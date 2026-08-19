@@ -76,6 +76,16 @@ export type DescentLine = {
   fromY: number;
   toX: number;
   toY: number;
+  /**
+   * The height this line turns sideways at.
+   *
+   * Every family used to bend at the same height, which put all their
+   * horizontal runs on one straight line across the canvas — so a row of
+   * relatives looked like one long sibling bar with everybody hanging off it,
+   * cousins included. Each family now turns at its own height, and the combs
+   * read as separate.
+   */
+  midY: number;
   childId: string;
   unionId: string | null;
   parentIds: string[];
@@ -525,22 +535,35 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
     return centre ?? null;
   };
 
+  // Each family gets its own bend height, cycling through a few so that
+  // neighbouring families never turn at the same place.
+  const BEND_FACTORS = [0.42, 0.58, 0.5, 0.66];
+  const bendIndex = new Map<string, number>();
+  const bendFactorFor = (key: string): number => {
+    if (!bendIndex.has(key)) bendIndex.set(key, bendIndex.size);
+    return BEND_FACTORS[bendIndex.get(key)! % BEND_FACTORS.length];
+  };
+
   for (const unit of units) {
     for (const group of childGroups(unit)) {
       const from = junctionFor(group.unionId, group.parentIds);
       if (!from) continue;
+      const bend = bendFactorFor(group.unionId ?? `solo:${group.parentIds[0]}`);
 
       const shown = visibleChildren(unit, group);
       for (const childId of shown) {
         const childCentre = centreOf.get(childId);
         if (!childCentre) continue;
         const edge = childEdges.find((e) => e.childId === childId && group.parentIds.includes(e.parentId));
+        const fromY = from.y + (group.unionId ? 0 : CARD_HEIGHT / 2);
+        const toY = childCentre.y - CARD_HEIGHT / 2;
         descentLines.push({
           id: `${group.unionId ?? group.parentIds[0]}->${childId}`,
           fromX: from.x,
-          fromY: from.y + (group.unionId ? 0 : CARD_HEIGHT / 2),
+          fromY,
           toX: childCentre.x,
-          toY: childCentre.y - CARD_HEIGHT / 2,
+          toY,
+          midY: fromY + (toY - fromY) * bend,
           childId,
           unionId: group.unionId,
           parentIds: group.parentIds,
@@ -650,7 +673,7 @@ function oneLinePerChild(lines: DescentLine[]): DescentLine[] {
 }
 
 export function descentPath(line: DescentLine): string {
-  const midY = line.fromY + (line.toY - line.fromY) * 0.55;
+  const midY = line.midY;
   if (Math.abs(line.fromX - line.toX) < 0.5) {
     return `M ${line.fromX} ${line.fromY} L ${line.toX} ${line.toY}`;
   }
