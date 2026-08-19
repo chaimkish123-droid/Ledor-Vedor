@@ -535,9 +535,17 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
     return centre ?? null;
   };
 
-  // Each family gets its own bend height, cycling through a few so that
-  // neighbouring families never turn at the same place.
-  const BEND_FACTORS = [0.42, 0.58, 0.5, 0.66];
+  /*
+   * Where a family's lines turn sideways.
+   *
+   * One height for everybody, deliberately. Giving each family its own looked
+   * like the answer to a row that reads as a single long bar — but a family
+   * bending low runs its horizontal straight through the band where its
+   * neighbours' verticals are, and the picture filled with crossings. Measured
+   * over the seeded families: one shared height gives none, staggered heights
+   * gave dozens. The wide gap between families does the separating instead.
+   */
+  const BEND_FACTORS = [0.55];
   const bendIndex = new Map<string, number>();
   const bendFactorFor = (key: string): number => {
     if (!bendIndex.has(key)) bendIndex.set(key, bendIndex.size);

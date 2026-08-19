@@ -234,31 +234,6 @@ test('a row puts visible air between one set of siblings and the next', () => {
   );
 });
 
-test('two families never turn their descent lines at the same height', () => {
-  const person = personOf('Michael Kish');
-  const layout = layoutFamily(neighborhood(person.id, { depth: 3 }), person.id);
-
-  // Group the bend heights by generation, then by family.
-  const byGeneration = new Map<number, Map<string, number>>();
-  for (const line of layout.descentLines) {
-    if (Math.abs(line.fromX - line.toX) < 0.5) continue; // straight down, no bend
-    const generation = Math.round(line.toY);
-    const families = byGeneration.get(generation) ?? new Map<string, number>();
-    families.set(line.unionId ?? `solo:${line.parentIds[0]}`, line.midY);
-    byGeneration.set(generation, families);
-  }
-
-  for (const [generation, families] of byGeneration) {
-    if (families.size < 2) continue;
-    const heights = [...families.values()];
-    assert.equal(
-      new Set(heights.map((h) => Math.round(h))).size,
-      heights.length,
-      `families on the row at ${generation} share a bend height, so their lines read as one bar`,
-    );
-  }
-});
-
 test('a bend still sits between the parents and their children', () => {
   const person = personOf('Michael Kish');
   const layout = layoutFamily(neighborhood(person.id, { depth: 3 }), person.id);
@@ -271,4 +246,68 @@ test('a bend still sits between the parents and their children', () => {
       `a line from ${line.parentIds[0]} bends outside the gap it is crossing`,
     );
   }
+});
+
+/* ------------------------------------------------------------------ *
+ * Lines from different families should not cross each other.
+ *
+ * This is the test that caught a change which looked right and was not:
+ * giving each family its own bend height separated them nicely and filled
+ * the canvas with crossings, because a family bending low runs its
+ * horizontal through the band where its neighbours' verticals are.
+ * ------------------------------------------------------------------ */
+
+type Seg = { x1: number; y1: number; x2: number; y2: number };
+
+/** The straight runs a descent line is actually drawn as. */
+function runsOf(line: { fromX: number; fromY: number; toX: number; toY: number; midY: number }): Seg[] {
+  if (Math.abs(line.fromX - line.toX) < 0.5) {
+    return [{ x1: line.fromX, y1: line.fromY, x2: line.toX, y2: line.toY }];
+  }
+  return [
+    { x1: line.fromX, y1: line.fromY, x2: line.fromX, y2: line.midY },
+    { x1: line.fromX, y1: line.midY, x2: line.toX, y2: line.midY },
+    { x1: line.toX, y1: line.midY, x2: line.toX, y2: line.toY },
+  ];
+}
+
+function runsCross(a: Seg, b: Seg): boolean {
+  const aVertical = Math.abs(a.x1 - a.x2) < 0.5;
+  const bVertical = Math.abs(b.x1 - b.x2) < 0.5;
+  if (aVertical === bVertical) return false; // parallel: separated by the family gap
+  const [vertical, horizontal] = aVertical ? [a, b] : [b, a];
+  const left = Math.min(horizontal.x1, horizontal.x2);
+  const right = Math.max(horizontal.x1, horizontal.x2);
+  const top = Math.min(vertical.y1, vertical.y2);
+  const bottom = Math.max(vertical.y1, vertical.y2);
+  return (
+    vertical.x1 > left + 0.5 &&
+    vertical.x1 < right - 0.5 &&
+    horizontal.y1 > top + 0.5 &&
+    horizontal.y1 < bottom - 0.5
+  );
+}
+
+test('lines belonging to different families almost never cross', () => {
+  let total = 0;
+  for (const name of ['Michael Kish', 'David Kish', 'Avraham Kish', 'Ruth Shapiro', 'Aviva Kish']) {
+    const person = personOf(name);
+    const lines = layoutFamily(neighborhood(person.id, { depth: 3 }), person.id).descentLines;
+    const familyOf = (line: (typeof lines)[number]) => line.unionId ?? `solo:${line.parentIds[0]}`;
+
+    for (let i = 0; i < lines.length; i++) {
+      for (let j = i + 1; j < lines.length; j++) {
+        if (familyOf(lines[i]) === familyOf(lines[j])) continue;
+        for (const a of runsOf(lines[i])) {
+          for (const b of runsOf(lines[j])) if (runsCross(a, b)) total++;
+        }
+      }
+    }
+  }
+
+  // Not zero: a family whose children sit on both sides of another family's
+  // does have to reach over it, and no amount of routing changes that. The
+  // number is here to catch a tenfold jump, which is what a bad change looks
+  // like — the staggered bend heights scored between ten and thirty.
+  assert.ok(total <= 4, `${total} crossings between different families is far too many`);
 });
