@@ -371,3 +371,26 @@ test('cousins start folded away, and open when asked', () => {
     'and one tap brings them in',
   );
 });
+
+test('centring on somebody the canvas has not loaded yet does not throw', () => {
+  // Choosing a distant relative from search changes the focus at once, while
+  // the family around them is still being fetched. For that moment the canvas
+  // is asked to centre on a person it has never heard of. It used to throw,
+  // and the whole page became "a client-side exception has occurred" with the
+  // family gone from the screen.
+  const michael = personOf('Michael Kish');
+  const slice = neighborhood(michael.id);
+
+  const layout = layoutFamily(slice, 'nobody-here-yet');
+
+  assert.ok(layout.nodes.length > 0, 'the family that is loaded is still drawn');
+  assert.ok(Number.isFinite(layout.focusPoint.x), 'and the canvas has somewhere to look');
+  assert.ok(Number.isFinite(layout.focusPoint.y));
+});
+
+test('an empty family does not throw either', () => {
+  const empty = { persons: {}, unions: {}, parentEdges: [], frontier: {} };
+  const layout = layoutFamily(empty, 'nobody');
+  assert.equal(layout.nodes.length, 0);
+  assert.ok(Number.isFinite(layout.focusPoint.x));
+});

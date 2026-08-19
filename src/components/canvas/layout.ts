@@ -344,9 +344,21 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
   /* --- Placement: tidy tree, then a de-collision pass --------------- */
 
   const roots = units.filter((unit) => parentUnitOf(unit) === null);
-  // Put the focus person's line first so it lands nearest the centre.
-  const focusUnit = unitOfPerson.get(focusId)!;
-  const focusRootId = rootOf(focusUnit)?.primaryId;
+
+  /*
+   * The person the canvas is centred on — who may not be here.
+   *
+   * Choosing somebody from search changes the focus immediately, while the
+   * part of the family around them is still being fetched. For that moment the
+   * canvas is asked to centre on a person it has never heard of. Insisting they
+   * exist threw, and threw where nobody could see it: the whole page was
+   * replaced by "a client-side exception has occurred", with the family gone.
+   *
+   * Far better to draw what is here and centre on nothing in particular for a
+   * moment, then settle when the rest arrives.
+   */
+  const focusUnit = unitOfPerson.get(focusId) ?? null;
+  const focusRootId = focusUnit ? rootOf(focusUnit)?.primaryId : undefined;
   roots.sort((a, b) => {
     if (a.primaryId === focusRootId) return -1;
     if (b.primaryId === focusRootId) return 1;
@@ -480,12 +492,21 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
   const walk = (unit: Unit) => {
     if (shownUnits.has(unit.primaryId)) return;
     shownUnits.add(unit.primaryId);
-    for (const child of childUnits(unit)) walk(child);
+    // Follow visible children into whichever unit holds them — not only the
+    // ones they are the primary of. Which partner becomes a couple's primary
+    // depends on the order people arrive in, so requiring it here made whole
+    // couples vanish depending on nothing anyone could see.
+    for (const group of childGroups(unit)) {
+      for (const childId of visibleChildren(unit, group)) {
+        const childUnit = unitOfPerson.get(childId);
+        if (childUnit) walk(childUnit);
+      }
+    }
   };
   for (const root of roots) walk(root);
   // Anyone whose parents are outside the loaded slice starts a line of their own.
   for (const unit of units) if (!parentUnitOf(unit)) walk(unit);
-  walk(focusUnit);
+  if (focusUnit) walk(focusUnit);
 
   const visible = units.filter((unit) => shownUnits.has(unit.primaryId));
 
@@ -700,7 +721,16 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
 
   const xs = nodes.flatMap((n) => [n.x, n.x + n.width]);
   const ys = nodes.flatMap((n) => [n.y, n.y + n.height]);
-  const focusCentre = centreOf.get(focusId) ?? { x: 0, y: 0 };
+  // Falling back to the middle of everything drawn, rather than to the origin,
+  // which would fling the canvas off to one corner.
+  const focusCentre =
+    centreOf.get(focusId) ??
+    (nodes.length
+      ? {
+          x: (Math.min(...nodes.map((n) => n.x)) + Math.max(...nodes.map((n) => n.x + n.width))) / 2,
+          y: (Math.min(...nodes.map((n) => n.y)) + Math.max(...nodes.map((n) => n.y + n.height))) / 2,
+        }
+      : { x: 0, y: 0 });
 
   return {
     nodes,
