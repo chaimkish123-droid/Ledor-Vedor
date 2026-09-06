@@ -9,6 +9,7 @@ import RelationshipFinder from '@/components/RelationshipFinder';
 import AddRelative from '@/components/AddRelative';
 import FamilyMenu from '@/components/FamilyMenu';
 import YahrzeitNotice from '@/components/YahrzeitNotice';
+import MobileTree from '@/components/canvas/MobileTree';
 import type { CalendarPreference } from '@/lib/dates';
 import type { GraphSlice, PersonSummary } from '@/lib/types';
 
@@ -65,6 +66,20 @@ export default function TreeClient({
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   // Bump this to make open panels refetch after a preference changes.
   const [prefVersion, setPrefVersion] = useState(0);
+
+  /*
+   * Narrow screens get a different view of the family, not a smaller one.
+   * Measured rather than guessed from the user agent: a phone held sideways and
+   * a small window are the same problem, and a tablet is not a phone.
+   */
+  const [onAPhone, setOnAPhone] = useState(false);
+  useEffect(() => {
+    const narrow = window.matchMedia('(max-width: 767px)');
+    const apply = () => setOnAPhone(narrow.matches);
+    apply();
+    narrow.addEventListener('change', apply);
+    return () => narrow.removeEventListener('change', apply);
+  }, []);
 
   /* --- Loading the visible slice ---------------------------------- */
 
@@ -329,7 +344,22 @@ export default function TreeClient({
 
       {/* The canvas dominates everything. */}
       <main id="main" className="relative flex-1">
-        {data && (
+        {data && onAPhone && (
+          <MobileTree
+            slice={data.slice}
+            focusId={focusId}
+            viewerPersonId={data.viewerPersonId}
+            relations={data.relations}
+            onSelect={setSelectedId}
+            onFocus={refocus}
+            onAddRelative={(anchorId, relation, unionId) => {
+              const anchor = data?.slice.persons[anchorId];
+              if (anchor) setAdding({ anchor, relation, unionId });
+            }}
+          />
+        )}
+
+        {data && !onAPhone && (
           <FamilyCanvas
             slice={data.slice}
             focusId={focusId}

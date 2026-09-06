@@ -382,14 +382,27 @@ export function layoutFamily(slice: GraphSlice, focusId: string, options: Layout
   // These are aligned over the focus person rather than over the midpoint of
   // all their children, so "my branch" reads as a column with the family
   // fanning out either side of it.
+  /*
+   * Walked person by person rather than unit by unit.
+   *
+   * A unit is named after one of its two people, and which one depends on the
+   * order they happened to be added. Following the line upwards through that
+   * name breaks the moment a couple is named after the partner who married in,
+   * since they have no parents here — the walk stops, the generation above is
+   * not recognised as being on your line, and its children are folded away with
+   * your aunts and uncles inside them. Following the actual parent of the actual
+   * person cannot go wrong that way.
+   */
   const focusPath = new Set<string>();
   {
-    let current: Unit | null = focusUnit;
+    let personId: string | null = focusId;
     const guard = new Set<string>();
-    while (current && !guard.has(current.primaryId)) {
-      guard.add(current.primaryId);
-      focusPath.add(current.primaryId);
-      current = parentUnitOf(current);
+    while (personId && !guard.has(personId)) {
+      guard.add(personId);
+      const unit = unitOfPerson.get(personId);
+      if (unit) focusPath.add(unit.primaryId);
+      const edge = childEdges.find((e) => e.childId === personId && unitOfPerson.has(e.parentId));
+      personId = edge ? edge.parentId : null;
     }
   }
 

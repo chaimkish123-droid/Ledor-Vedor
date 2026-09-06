@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { PersonSummary } from '@/lib/types';
+import QuickStart from '@/components/QuickStart';
 
 type Step = 'find' | 'confirm' | 'add';
 
@@ -162,25 +163,8 @@ export default function OnboardingPage() {
           </>
         )}
 
-        {step === 'add' && (
-          <>
-            <h1 className="serif mb-2 text-center text-3xl text-ink">Add one thing</h1>
-            <p className="mb-8 text-center text-[16px] leading-relaxed text-ink-soft">
-              A missing relative, a date, or a memory. One small addition from each of us keeps the
-              whole family whole.
-            </p>
-
-            <button
-              type="button"
-              onClick={finish}
-              className="w-full rounded-full bg-sage px-6 py-3.5 text-[16px] text-white transition-colors hover:bg-sage-deep"
-            >
-              Go to my branch
-            </button>
-            <button type="button" onClick={finish} className="mt-4 block w-full text-center text-[15px] text-ink-faint underline underline-offset-2">
-              I&rsquo;ll do it later
-            </button>
-          </>
+        {step === 'add' && claimed && (
+          <QuickStart personId={claimed.id} onDone={finish} />
         )}
       </div>
     </main>
