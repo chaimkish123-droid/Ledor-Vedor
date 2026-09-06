@@ -63,6 +63,10 @@ export default function AddRelative({
   const [birth, setBirth] = useState('');
   const [gender, setGender] = useState<string>('');
   const [tookTheName, setTookTheName] = useState(true);
+  // Children of the anchor with no other parent yet, and whether this is the
+  // anchor's first recorded marriage — which decides the default below.
+  const [lone, setLone] = useState<{ children: { id: string; preferredName: string }[]; firstMarriage: boolean } | null>(null);
+  const [sharedChildren, setSharedChildren] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [dismissedDuplicates, setDismissedDuplicates] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -85,6 +89,19 @@ export default function AddRelative({
     return () => clearTimeout(timer);
   }, [name, birth]);
 
+  useEffect(() => {
+    if (relation !== 'spouse') return;
+    fetch(`/api/person/${anchor.id}/lone-children`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (!data.error) {
+          setLone(data);
+          setSharedChildren(Boolean(data.firstMarriage));
+        }
+      })
+      .catch(() => setLone(null));
+  }, [relation, anchor.id]);
+
   const submit = async (existingPersonId?: string) => {
     setSaving(true);
     setError(null);
@@ -100,6 +117,7 @@ export default function AddRelative({
         birthName: useMarriedName && typedSurname ? name.trim() : undefined,
         birth: birth || undefined,
         gender: gender || undefined,
+        sharedChildren: relation === 'spouse' && lone?.children.length ? sharedChildren : undefined,
       }),
     });
     const data = await response.json();
@@ -200,6 +218,25 @@ export default function AddRelative({
               ))}
             </div>
           </fieldset>
+
+          {relation === 'spouse' && lone && lone.children.length > 0 && (
+            <label className="flex items-start gap-2.5 rounded-lg border border-stone-line bg-parchment px-3.5 py-3 text-[15px] leading-relaxed text-ink">
+              <input
+                type="checkbox"
+                checked={sharedChildren}
+                onChange={(event) => setSharedChildren(event.target.checked)}
+                className="mt-1 h-4 w-4 accent-[#7d8b6a]"
+              />
+              <span>
+                Also the parent of{' '}
+                <strong>{lone.children.map((child) => child.preferredName.split(' ')[0]).join(', ')}</strong>.
+                <span className="mt-0.5 block text-[13px] text-ink-faint">
+                  {lone.children.length === 1 ? 'The child is' : 'The children are'} recorded with{' '}
+                  {anchor.preferredName.split(' ')[0]} alone so far. Ticked, they hang from the two of them together.
+                </span>
+              </span>
+            </label>
+          )}
 
           {offerMarriedName && (
             <label className="flex items-start gap-2.5 rounded-lg border border-stone-line bg-parchment px-3.5 py-3 text-[15px] leading-relaxed text-ink">

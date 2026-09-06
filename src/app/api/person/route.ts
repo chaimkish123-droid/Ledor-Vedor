@@ -3,10 +3,12 @@ import { actorOf, withUser } from '@/lib/api';
 import { parseDateInput } from '@/lib/dates';
 import {
   adoptEdgeIntoUnion,
+  attachChildrenToUnion,
   createPerson,
   createUnion,
   findSharedUnion,
   linkParentChild,
+  loneChildrenOf,
   parentIdsOf,
   spouseIdsOf,
   unionsOfPerson,
@@ -61,7 +63,9 @@ export async function POST(request: NextRequest) {
         const existingParents = parentIdsOf(anchorId);
         let unionId: string | null = null;
         if (existingParents.length === 1) {
-          unionId = createUnion([existingParents[0], personId], { status: 'married' }, actor);
+          unionId =
+            findSharedUnion(existingParents[0], personId) ??
+            createUnion([existingParents[0], personId], { status: 'married' }, actor);
           // The parent already there was recorded before this marriage existed,
           // so their link still hangs off nobody. Left alone, the child descends
           // from two places at once — the new marriage and the old lone parent —
@@ -102,11 +106,23 @@ export async function POST(request: NextRequest) {
       }
 
       case 'spouse': {
-        createUnion([anchorId, personId], {
-          status: body.status ?? 'married',
-          start: body.marriedOn ? parseDateInput(String(body.marriedOn)) : undefined,
-          place: body.marriagePlace || null,
-        }, actor);
+        const unionId =
+          (body.existingPersonId ? findSharedUnion(anchorId, personId) : null) ??
+          createUnion([anchorId, personId], {
+            status: body.status ?? 'married',
+            start: body.marriedOn ? parseDateInput(String(body.marriedOn)) : undefined,
+            place: body.marriagePlace || null,
+          }, actor);
+
+        // Children recorded before the marriage was. The form asks; where it
+        // did not, a first marriage claims them — a child with one parent and
+        // that parent's only husband or wife are almost always each other's.
+        const lone = loneChildrenOf(anchorId);
+        const claim =
+          body.sharedChildren === undefined
+            ? unionsOfPerson(anchorId).length === 1
+            : Boolean(body.sharedChildren);
+        if (lone.length && claim) attachChildrenToUnion(anchorId, personId, unionId, lone, actor);
         break;
       }
     }

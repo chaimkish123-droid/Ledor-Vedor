@@ -1055,6 +1055,45 @@ export function adoptEdgeIntoUnion(parentId: string, childId: string, unionId: s
 }
 
 /**
+ * Children recorded with this one parent and nobody else.
+ *
+ * Asked at the moment their other parent is being added: a husband or wife
+ * recorded after the children almost always is the children's other parent,
+ * and joining them then is what puts one line from the two of them together
+ * above each child, instead of a line from one parent alone.
+ */
+export function loneChildrenOf(parentId: string): string[] {
+  return (
+    db()
+      .prepare(
+        `SELECT pc.child_id
+           FROM parent_child pc
+          WHERE pc.parent_id = ?
+            AND pc.union_id IS NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM parent_child other
+               WHERE other.child_id = pc.child_id AND other.parent_id <> pc.parent_id
+            )`,
+      )
+      .all(parentId) as Row[]
+  ).map((r) => r.child_id);
+}
+
+/** Make the marriage the children's, and the other partner their parent. */
+export function attachChildrenToUnion(
+  parentId: string,
+  otherParentId: string,
+  unionId: string,
+  childIds: string[],
+  actor: Actor,
+) {
+  for (const childId of childIds) {
+    adoptEdgeIntoUnion(parentId, childId, unionId);
+    linkParentChild(otherParentId, childId, { unionId }, actor);
+  }
+}
+
+/**
  * The same repair for links already stored that way, run once on start-up.
  *
  * A link with no marriage is perfectly legitimate — a parent whose partner is

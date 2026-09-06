@@ -136,6 +136,80 @@ function migrate(database: Database.Database) {
           WHERE sibling.child_id = pc.child_id AND sibling.union_id IS NOT NULL
        );
   `);
+
+  /*
+   * Two parents, one line.
+   *
+   * A child with a father and a mother recorded is drawn hanging from the two
+   * of them together — from the marriage line between them — never from one
+   * parent alone. Wherever the records say otherwise, the records are wrong
+   * about the drawing, not about the family:
+   *
+   *   - both links were made before anybody recorded the marriage, so neither
+   *     knows about it, though the marriage is there;
+   *   - or no marriage was ever recorded between them at all, in which case
+   *     two parents of the same child are as married as this archive needs.
+   */
+  database.exec(`
+    UPDATE parent_child AS pc
+       SET union_id = (
+         SELECT a.union_id
+           FROM parent_child other
+           JOIN union_partner a ON a.person_id = pc.parent_id
+           JOIN union_partner b ON b.union_id = a.union_id AND b.person_id = other.parent_id
+          WHERE other.child_id = pc.child_id AND other.parent_id <> pc.parent_id
+          LIMIT 1
+       )
+     WHERE pc.union_id IS NULL
+       AND EXISTS (
+         SELECT 1
+           FROM parent_child other
+           JOIN union_partner a ON a.person_id = pc.parent_id
+           JOIN union_partner b ON b.union_id = a.union_id AND b.person_id = other.parent_id
+          WHERE other.child_id = pc.child_id AND other.parent_id <> pc.parent_id
+       );
+  `);
+
+  const unmarried = database
+    .prepare(
+      `SELECT childId, a, b FROM (
+         SELECT child_id AS childId, MIN(parent_id) AS a, MAX(parent_id) AS b
+           FROM parent_child
+          WHERE union_id IS NULL
+          GROUP BY child_id
+         HAVING COUNT(DISTINCT parent_id) = 2
+       )
+       WHERE NOT EXISTS (
+         SELECT 1 FROM union_partner x
+         JOIN union_partner y ON y.union_id = x.union_id
+         WHERE x.person_id = a AND y.person_id = b
+       )`,
+    )
+    .all() as { childId: string; a: string; b: string }[];
+
+  const marry = database.prepare(
+    `INSERT INTO union_rel (id, status, start_value, start_precision, start_qualifier, end_value, end_precision, end_qualifier, place_id, note, created_at, created_by)
+     VALUES (?, 'married', '', 'unknown', 'none', '', 'unknown', 'none', NULL, NULL, ?, NULL)`,
+  );
+  const partner = database.prepare(
+    'INSERT OR IGNORE INTO union_partner (union_id, person_id, position) VALUES (?, ?, ?)',
+  );
+  const attach = database.prepare(
+    'UPDATE parent_child SET union_id = ? WHERE child_id = ? AND parent_id IN (?, ?) AND union_id IS NULL',
+  );
+  const made = new Map<string, string>();
+  for (const { childId, a, b } of unmarried) {
+    const key = `${a}:${b}`;
+    let unionId = made.get(key);
+    if (!unionId) {
+      unionId = id();
+      marry.run(unionId, now());
+      partner.run(unionId, a, 0);
+      partner.run(unionId, b, 1);
+      made.set(key, unionId);
+    }
+    attach.run(unionId, childId, a, b);
+  }
 }
 
 /**
