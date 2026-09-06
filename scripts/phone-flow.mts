@@ -85,20 +85,44 @@ check('the family arrives on the tree', /Shloime Traveller/.test(tree));
 check('with the parents above', /Dovid Traveller|Leah Traveller/.test(tree));
 check('the wife beside', /Miri Traveller/.test(tree));
 check('the children below', /Nochum Traveller/.test(tree));
-check('and the brothers to hand', /Yitzy Traveller|Berel Traveller/.test(tree));
-check(
-  'laid out as rows, not a canvas to pinch',
-  /parents/i.test(tree) && /brothers and sisters/i.test(tree),
-);
+check('and the brothers to hand', /Yitzy|Berel/.test(tree));
+check('and the brothers named as chips below', /brothers and sisters/i.test(tree));
+
+// Real lines: the marriage bars and the drops to children are drawn as paths.
+const drawn = await page.locator('main svg path').count();
+check('drawn as a tree, with lines between the generations', drawn >= 4, `${drawn} lines`);
+
 
 await page.screenshot({ path: `${OUT}/41-phone-tree.png` });
 
 /* --- Walking to somebody else ------------------------------------------ */
 
-await page.getByRole('button', { name: /Move to Dovid Traveller/i }).click();
+await page.getByRole('button', { name: /^Dovid Traveller, / }).click();
 await page.waitForTimeout(2200);
 const moved = await page.locator('body').innerText();
 check('a tap moves you to them', /Zeidy Traveller/.test(moved), 'his father is now in view');
+check('without a panel covering the tree', !moved.includes('Full profile'));
+check(
+  'and his children become the row below',
+  /Shloime/.test(moved) && /Yitzy|Berel/.test(moved),
+);
+check(
+  'the empty places offer to be filled',
+  (await page.getByRole('button', { name: /Add a parent/ }).count()) > 0,
+  'his mother is not recorded yet',
+);
+
+/* --- Tapping the middle opens them -------------------------------------- */
+
+await page.getByRole('button', { name: /^Dovid Traveller, / }).click();
+await page.waitForTimeout(1200);
+check(
+  'a tap on the middle opens their panel',
+  (await page.locator('body').innerText()).includes('Full profile'),
+);
+await page.screenshot({ path: `${OUT}/43-phone-panel.png` });
+await page.keyboard.press('Escape');
+await page.waitForTimeout(500);
 
 await page.screenshot({ path: `${OUT}/42-phone-walked.png` });
 

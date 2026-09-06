@@ -9,7 +9,7 @@ import RelationshipFinder from '@/components/RelationshipFinder';
 import AddRelative from '@/components/AddRelative';
 import FamilyMenu from '@/components/FamilyMenu';
 import YahrzeitNotice from '@/components/YahrzeitNotice';
-import MobileTree from '@/components/canvas/MobileTree';
+import PhoneTree from '@/components/canvas/PhoneTree';
 import type { CalendarPreference } from '@/lib/dates';
 import type { GraphSlice, PersonSummary } from '@/lib/types';
 
@@ -148,9 +148,12 @@ export default function TreeClient({
 
   /* --- Moving around the family ----------------------------------- */
 
-  const refocus = useCallback((personId: string) => {
+  const refocus = useCallback((personId: string, options: { open?: boolean } = {}) => {
     setFocusId(personId);
-    setSelectedId(personId);
+    // On a desk the panel opens beside the tree. On a phone it would cover it,
+    // and somebody walking the family wants to keep seeing the tree they are
+    // walking — so there, moving to a person and opening them are two taps.
+    setSelectedId(options.open === false ? null : personId);
     setHighlightPath(null);
     setDepth({ up: 2, down: 2 });
   }, []);
@@ -345,13 +348,13 @@ export default function TreeClient({
       {/* The canvas dominates everything. */}
       <main id="main" className="relative flex-1">
         {data && onAPhone && (
-          <MobileTree
+          <PhoneTree
             slice={data.slice}
             focusId={focusId}
             viewerPersonId={data.viewerPersonId}
             relations={data.relations}
             onSelect={setSelectedId}
-            onFocus={refocus}
+            onFocus={(id) => refocus(id, { open: false })}
             onAddRelative={(anchorId, relation, unionId) => {
               const anchor = data?.slice.persons[anchorId];
               if (anchor) setAdding({ anchor, relation, unionId });
@@ -391,16 +394,19 @@ export default function TreeClient({
 
         {/* View controls, bottom-left, out of the way. */}
         <div className="absolute bottom-5 left-4 flex flex-col items-start gap-1.5 sm:bottom-6 sm:left-6">
-          <button
-            type="button"
-            onClick={() => setFocusMode((current) => !current)}
-            aria-pressed={focusMode}
-            className={`rounded-full border px-3.5 py-2 text-[13px] transition-colors ${
-              focusMode ? 'border-sage bg-sage-soft text-sage-deep' : 'border-stone-line bg-card text-ink-soft'
-            }`}
-          >
-            Focus mode {focusMode ? 'on' : 'off'}
-          </button>
+          {/* The phone tree is always one family at a time; focus mode is a canvas idea. */}
+          {!onAPhone && (
+            <button
+              type="button"
+              onClick={() => setFocusMode((current) => !current)}
+              aria-pressed={focusMode}
+              className={`rounded-full border px-3.5 py-2 text-[13px] transition-colors ${
+                focusMode ? 'border-sage bg-sage-soft text-sage-deep' : 'border-stone-line bg-card text-ink-soft'
+              }`}
+            >
+              Focus mode {focusMode ? 'on' : 'off'}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
