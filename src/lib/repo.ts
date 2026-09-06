@@ -125,6 +125,38 @@ export function getSummary(personId: string): PersonSummary | null {
   return getSummaries([personId])[0] ?? null;
 }
 
+/**
+ * Everyone no longer living whose death date includes the day.
+ *
+ * A yahrzeit needs the day; a year on its own cannot give one, and a guessed
+ * date would have a family lighting a candle on an evening nobody died. Those
+ * people are returned separately so the archive can say what it is missing
+ * rather than quietly leaving them out.
+ */
+export function deathsForYahrzeit(): {
+  known: PersonSummary[];
+  dayUnknown: PersonSummary[];
+} {
+  const rows = db()
+    .prepare(
+      `SELECT id FROM person
+        WHERE living = 0
+          AND death_value IS NOT NULL AND death_value != ''
+        ORDER BY preferred_name`,
+    )
+    .all() as { id: string }[];
+
+  const summaries = getSummaries(rows.map((row) => row.id));
+  const known: PersonSummary[] = [];
+  const dayUnknown: PersonSummary[] = [];
+
+  for (const person of summaries) {
+    (person.death.precision === 'exact' ? known : dayUnknown).push(person);
+  }
+
+  return { known, dayUnknown };
+}
+
 export function personCount(): number {
   return (db().prepare('SELECT COUNT(*) AS n FROM person').get() as Row).n;
 }

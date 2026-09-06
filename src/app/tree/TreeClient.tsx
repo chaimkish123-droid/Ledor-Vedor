@@ -8,6 +8,7 @@ import SearchBar from '@/components/SearchBar';
 import RelationshipFinder from '@/components/RelationshipFinder';
 import AddRelative from '@/components/AddRelative';
 import FamilyMenu from '@/components/FamilyMenu';
+import YahrzeitNotice from '@/components/YahrzeitNotice';
 import type { CalendarPreference } from '@/lib/dates';
 import type { GraphSlice, PersonSummary } from '@/lib/types';
 
@@ -323,6 +324,8 @@ export default function TreeClient({
           />
         </div>
       </header>
+
+      <YahrzeitNotice />
 
       {/* The canvas dominates everything. */}
       <main id="main" className="relative flex-1">
