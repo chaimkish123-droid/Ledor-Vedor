@@ -242,3 +242,57 @@ sudo apt update && sudo apt upgrade -y && sudo reboot
 
 For anything else: `docker compose -f docker-compose.https.yml logs --tail 50`
 usually says plainly what happened. Copy the red text and bring it back.
+
+---
+
+## Part 8 — Moving to your own domain
+
+A name like `ldorvador.com` costs about $10 a year, is easier for family to
+remember, and is the address a content filter will whitelist. The server, the
+archive and the application do not change at all — only the name pointing at
+them.
+
+### 1. Buy the name
+
+Any registrar works. **Cloudflare** (cloudflare.com, *Domain Registration*)
+sells at cost with no upselling; **Namecheap** and **Google Domains' successor,
+Squarespace** are fine too. Pay for one year; renewal is automatic.
+
+### 2. Point it at the server
+
+In the registrar's DNS page add two records, both with the server's public IP:
+
+| Type | Name | Value              |
+|------|------|--------------------|
+| A    | `@`  | `132.226.49.124`   |
+| A    | `www`| `132.226.49.124`   |
+
+If the registrar offers a "proxy" or orange-cloud switch (Cloudflare does),
+turn it **off** for these records — Caddy needs to reach Let's Encrypt
+directly to fetch its certificate.
+
+Wait a few minutes, then check from Cloud Shell:
+
+```bash
+ping -c1 ldorvador.com
+```
+
+It should print the server's IP.
+
+### 3. Tell the server its new name
+
+From Cloud Shell, one line, with your name in place of `ldorvador.com`:
+
+```bash
+ssh ubuntu@132.226.49.124 'cd ldor-vador && echo "LDOR_DOMAIN=ldorvador.com, www.ldorvador.com, ldorvador.duckdns.org" > .env && sudo docker compose -f docker-compose.https.yml up -d --force-recreate caddy'
+```
+
+Caddy fetches a certificate for every name in the list on its own, within a
+few seconds. Keeping the old `duckdns` name in the list means any link already
+sent to family keeps working; drop it from the list whenever you like.
+
+### 4. Try it
+
+Open **https://ldorvador.com**. Everybody signs in as before — accounts,
+family and photographs are untouched. Invitation links you make from now on
+carry the new name automatically.
